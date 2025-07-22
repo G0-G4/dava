@@ -1,10 +1,12 @@
 import base64
 import json
 import time
+from urllib import response
 
 import requests
 class AvatarGenerator:
-    def __init__(self):
+    def __init__(self, cookies, image_dir):
+        self.image_dir = image_dir
         self.url = "stablediffusionweb.com"
         self.headers = {
             'accept': '*/*',
@@ -22,7 +24,7 @@ class AvatarGenerator:
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'same-origin',
             'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-            'Cookie': 'change me'
+            'Cookie': cookies
         }
         self.create_task_data = {
             "0": {
@@ -65,19 +67,24 @@ class AvatarGenerator:
         }
 
     def get_and_encode_image(self):
-        with open('images/avatar.jpg', 'rb') as image:
+        with open(self.image_dir + '/avatar.jpg', 'rb') as image:
             image_b64 = base64.b64encode(image.read()).decode()
             return "data:image/jpeg;base64," + image_b64
+
     def create_task(self, image_b64: str):
         url = "https://stablediffusionweb.com/api/generate.image.addTasks?batch=1"
         self.create_task_data['0']['json']['input_image'] = image_b64
         response = requests.request("POST", url, headers=self.headers, data=json.dumps(self.create_task_data))
+        if response.status_code != 200:
+            raise RuntimeError(f"failed to create task: {response.text}")
         return response.json()
 
     def check_status(self, uuid: str):
         url = "https://stablediffusionweb.com/api/generate.image.getTasks?batch=1"
         self.check_data['0']['json'][0]['uuid'] = uuid
         response = requests.request("POST", url, headers=self.headers, data=json.dumps(self.check_data))
+        if response.status_code != 200:
+            raise RuntimeError(f"failed to check status: {response.text}")
         return response.json()
 
     def get_image_url(self) -> str:
@@ -94,14 +101,15 @@ class AvatarGenerator:
 
     def save_image(self):
         url  = self.get_image_url()
-        picture_request = requests.get(url)
-        if picture_request.status_code == 200:
-            with open("images/new_avatar.jpg", 'wb') as f:
-                f.write(picture_request.content)
+        response = requests.get(url)
+        if response.status_code != 200:
+            raise RuntimeError(f"failed to check status: {response.text}")
+        with open(self.image_dir + "/new_avatar.jpg", 'wb') as f:
+            f.write(response.content)
 
 
 if __name__ == '__main__':
-    g = AvatarGenerator()
+    g = AvatarGenerator("", "images")
     g.save_image()
 
 
