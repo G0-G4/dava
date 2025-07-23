@@ -50,42 +50,68 @@ class AvatarGenerator:
         self.weather_descriptor = weather_descriptor
 
     def _get_and_encode_image(self) -> str:
-        with open(self.image_dir / 'avatar.jpg', 'rb') as image:
-            image_b64 = base64.b64encode(image.read()).decode()
-            return f"data:image/jpeg;base64,{image_b64}"
+        try:
+            image_path = self.image_dir / 'avatar.jpg'
+            logger.debug(f"Reading and encoding image from {image_path}")
+            with open(image_path, 'rb') as image:
+                image_b64 = base64.b64encode(image.read()).decode()
+                return f"data:image/jpeg;base64,{image_b64}"
+        except Exception as e:
+            logger.error(f"Failed to read/encode image: {str(e)}")
+            raise RequestError(f"Image processing failed: {str(e)}") from e
 
     async def _create_task(self, image_b64: str):
-        url = "https://stablediffusionweb.com/api/generate.image.addTasks?batch=1"
-        task_data = {
-            "0": {
-                "json": {
-                    "model": "SD-XL",
-                    "prompt": self._prepare_prompt(),
-                    "negative_prompt": "",
-                    **IMAGE_CONFIG,
-                    "input_image": image_b64
+        try:
+            url = "https://stablediffusionweb.com/api/generate.image.addTasks?batch=1"
+            prompt = await self._prepare_prompt()
+            logger.debug(f"Creating generation task with prompt: {prompt}")
+            task_data = {
+                "0": {
+                    "json": {
+                        "model": "SD-XL",
+                        "prompt": prompt,
+                        "negative_prompt": "",
+                        **IMAGE_CONFIG,
+                        "input_image": image_b64
+                    }
                 }
             }
-        }
-        return await make_request(url, self.headers, "POST", task_data)
+            response = await make_request(url, self.headers, "POST", task_data)
+            logger.debug("Generation task created successfully")
+            return response
+        except Exception as e:
+            logger.error(f"Failed to create generation task: {str(e)}")
+            raise RequestError(f"Task creation failed: {str(e)}") from e
 
-    def _prepare_prompt(self):
-        weather = self.weather_descriptor.get_forecast()
-        prompt = self.prompt
-        weather = {**weather, "place": self.place}
-        for key, val in weather.items():
-            prompt = prompt.replace('{'+key+'}', val)
-        print(prompt)
-        return prompt
+    async def _prepare_prompt(self):
+        try:
+            weather = await self.weather_descriptor.get_forecast()
+            prompt = self.prompt
+            weather = {**weather, "place": self.place}
+            for key, val in weather.items():
+                prompt = prompt.replace('{'+key+'}', val)
+            logger.debug(f"Prepared prompt: {prompt}")
+            return prompt
+        except Exception as e:
+            logger.error(f"Failed to prepare prompt: {str(e)}")
+            raise RequestError(f"Prompt preparation failed: {str(e)}") from e
 
     async def _check_status(self, uuid: str):
-        url = "https://stablediffusionweb.com/api/generate.image.getTasks?batch=1"
-        check_data = {
-            "0": {
-                "json": [{"uuid": uuid, "status": "new"}]
+        try:
+            url = "https://stablediffusionweb.com/api/generate.image.getTasks?batch=1"
+            check_data = {
+                "0": {
+                    "json": [{"uuid": uuid, "status": "new"}]
+                }
             }
-        }
-        return await make_request(url, self.headers, "POST", check_data)
+            logger.debug(f"Checking status for task {uuid}")
+            response = await make_request(url, self.headers, "POST", check_data)
+            status = response[0]['result']['data']['json'][0]['status']
+            logger.debug(f"Task {uuid} status: {status}")
+            return response
+        except Exception as e:
+            logger.error(f"Failed to check task status: {str(e)}")
+            raise RequestError(f"Status check failed: {str(e)}") from e
 
     async def _get_image_url(self) -> str:
         try:
