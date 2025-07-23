@@ -20,7 +20,7 @@ async def make_request(
             async with session.request(method, url, **kwargs) as response:
                 if response.status != 200:
                     error_msg = await response.text()
-                    raise RequestError(f"API request failed: {response.status} - {error_msg}")
+                    raise RequestError(f"{method} {url} failed: {response.status} - {error_msg}")
                 return await response.json()
     except aiohttp.ClientError as e:
         raise RequestError(f"Network error: {str(e)}") from e
