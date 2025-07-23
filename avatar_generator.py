@@ -109,6 +109,7 @@ class AvatarGenerator:
             raise RequestError(f"Failed getting image URL: {str(e)}") from e
 
     async def save_image(self) -> str:
+        await self.weather_descriptor.get_forecast()  # Just to test the async call
         try:
             image_url = await self._get_image_url()
             async with aiohttp.ClientSession() as session:
