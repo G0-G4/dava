@@ -10,6 +10,7 @@ from typing import Dict, Any
 from config import COOKIES, IMAGE_DIR, PLACE, PROMPT_TEXT
 from errors import RequestError
 from weather_descriptor import WeatherDescriptor
+from common import make_request
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class AvatarGenerator:
             image_b64 = base64.b64encode(image.read()).decode()
             return f"data:image/jpeg;base64,{image_b64}"
 
-    def _create_task(self, image_b64: str):
+    async def _create_task(self, image_b64: str):
         url = "https://stablediffusionweb.com/api/generate.image.addTasks?batch=1"
         task_data = {
             "0": {
@@ -67,7 +68,7 @@ class AvatarGenerator:
                 }
             }
         }
-        return self._make_request(url, task_data)
+        return await make_request(url, self.headers, "POST", task_data)
 
     def _prepare_prompt(self):
         weather = self.weather_descriptor.get_forecast()
@@ -78,14 +79,14 @@ class AvatarGenerator:
         print(prompt)
         return prompt
 
-    def _check_status(self, uuid: str):
+    async def _check_status(self, uuid: str):
         url = "https://stablediffusionweb.com/api/generate.image.getTasks?batch=1"
         check_data = {
             "0": {
                 "json": [{"uuid": uuid, "status": "new"}]
             }
         }
-        return self._make_request(url, check_data)
+        return await make_request(url, self.headers, "POST", check_data)
 
     async def _get_image_url(self) -> str:
         try:
@@ -126,16 +127,6 @@ class AvatarGenerator:
         except Exception as e:
             raise RequestError(f"Failed saving image: {str(e)}") from e
 
-    async def _make_request(self, url: str, data: Dict[str, Any]) -> dict:
-        try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
-                async with session.post(url, headers=self.headers, json=data) as response:
-                    if response.status != 200:
-                        error_msg = await response.text()
-                        raise RequestError(f"API request failed: {response.status} - {error_msg}")
-                    return await response.json()
-        except aiohttp.ClientError as e:
-            raise RequestError(f"Network error: {str(e)}") from e
 
 
 async def main():
