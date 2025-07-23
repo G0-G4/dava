@@ -1,21 +1,22 @@
+import asyncio
 from telethon import TelegramClient
 from telethon.tl.functions.photos import UploadProfilePhotoRequest, DeletePhotosRequest
 from telethon.tl.types import InputPhoto
 
 from avatar_generator import AvatarGenerator
-from config import API_HASH, API_ID, COOKIES, IMAGE_DIR
+from config import API_HASH, API_ID, COOKIES, IMAGE_DIR, PROMPT_TEXT, PLACE, LATITUDE, LONGITUDE, TIMEZONE
 from weather_descriptor import WeatherDescriptor
 
-class AvatarUpdater:
 
+class AvatarUpdater:
     def __init__(self, avatar_generator: AvatarGenerator):
         self.avatar_generator = avatar_generator
         self.client = TelegramClient("anon", API_ID, API_HASH)
 
-    def update(self):
-        img = self.avatar_generator.save_image()
-        with self.client:
-            self.client.loop.run_until_complete(self._update_avatar(img))
+    async def async_update(self):
+        async with self.client:
+            img = await self.avatar_generator.save_image()
+            await self._update_avatar(img)
 
     async def _update_avatar(self, img):
         await self._delete_avatar()
@@ -34,5 +35,10 @@ class AvatarUpdater:
             ))
 
 if __name__ == "__main__":
-    a = AvatarUpdater(AvatarGenerator(COOKIES, IMAGE_DIR, WeatherDescriptor()))
-    a.update()
+    async def main():
+        weather_descriptor = WeatherDescriptor(LATITUDE, LONGITUDE, TIMEZONE)
+        generator = AvatarGenerator(COOKIES, IMAGE_DIR, PROMPT_TEXT, PLACE, weather_descriptor)
+        updater = AvatarUpdater(generator)
+        await updater.async_update()
+
+    asyncio.run(main())
