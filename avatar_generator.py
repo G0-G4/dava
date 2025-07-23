@@ -1,12 +1,20 @@
+import aiohttp
+import aiofiles
+import asyncio
 import base64
-import json
+import logging
 import time
 from pathlib import Path
 from typing import Dict, Any
-import requests
 
 from config import COOKIES, IMAGE_DIR, PLACE, PROMPT_TEXT
 from weather_descriptor import WeatherDescriptor
+
+logger = logging.getLogger(__name__)
+
+class AvatarError(Exception):
+    """Single exception type for all avatar-related errors"""
+    pass
 
 HEADERS_TEMPLATE = {
     'accept': '*/*',
@@ -78,35 +86,60 @@ class AvatarGenerator:
         }
         return self._make_request(url, check_data)
 
-    def get_image_url(self) -> str:
-        image = self.get_and_encode_image()
-        task_response = self.create_task(image)
-        uuid = task_response[0]['result']['data']['json'][0]['uuid']
-        status = ""
-        response = None
-        while status != "completed":
-            response = self.check_status(uuid)
-            status = response[0]['result']['data']['json'][0]['status']
-            print(status)
-            time.sleep(1)
-        return response[0]['result']['data']['json'][0]['s3_url']
+    async def get_image_url(self) -> str:
+        try:
+            image = self.get_and_encode_image()
+            task_response = await self.create_task(image)
+            uuid = task_response[0]['result']['data']['json'][0]['uuid']
+            
+            for _ in range(60):  # 1 minute timeout
+                response = await self.check_status(uuid)
+                status = response[0]['result']['data']['json'][0]['status']
+                
+                if status == "completed":
+                    return response[0]['result']['data']['json'][0]['s3_url']
+                if status == "failed":
+                    raise AvatarError("Image generation failed on server")
+                
+                await asyncio.sleep(1)
+            
+            raise AvatarError("Image generation timed out")
+        except Exception as e:
+            raise AvatarError(f"Failed getting image URL: {str(e)}")
 
-    def save_image(self):
-        url = self.get_image_url()
-        response = requests.get(url)
-        if response.status_code != 200:
-            raise RuntimeError(f"Failed to download image: {response.text}")
-        with open(self.image_dir / "new_avatar.jpg", 'wb') as f:
-            f.write(response.content)
-        return (self.image_dir / "new_avatar.jpg").absolute().as_posix()
+    async def save_image(self) -> str:
+        try:
+            image_url = await self.get_image_url()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as response:
+                    if response.status != 200:
+                        raise AvatarError(f"Image download failed: {response.status}")
+                    
+                    timestamp = int(time.time())
+                    save_path = self.image_dir / f"avatar_{timestamp}.jpg"
+                    
+                    async with aiofiles.open(save_path, 'wb') as f:
+                        await f.write(await response.read())
+                    
+                    return str(save_path.absolute())
+        except Exception as e:
+            raise AvatarError(f"Failed saving image: {str(e)}")
 
-    def _make_request(self, url: str, data: Dict[str, Any]):
-        response = requests.post(url, headers=self.headers, json=data)
-        if response.status_code != 200:
-            raise RuntimeError(f"Request failed: {response.text}")
-        return response.json()
+    async def _make_request(self, url: str, data: Dict[str, Any]) -> dict:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+                async with session.post(url, headers=self.headers, json=data) as response:
+                    if response.status != 200:
+                        error_msg = await response.text()
+                        raise AvatarError(f"API request failed: {response.status} - {error_msg}")
+                    return await response.json()
+        except aiohttp.ClientError as e:
+            raise AvatarError(f"Network error: {str(e)}")
 
+
+async def main():
+    g = AvatarGenerator(COOKIES, IMAGE_DIR, WeatherDescriptor())
+    await g.save_image()
 
 if __name__ == '__main__':
-    g = AvatarGenerator(COOKIES, IMAGE_DIR, WeatherDescriptor())
-    g.save_image()
+    asyncio.run(main())
