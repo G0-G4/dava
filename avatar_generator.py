@@ -44,7 +44,6 @@ IMAGE_CONFIG = {
 class AvatarGenerator:
     def __init__(self, cookies: str, image_dir: str, prompt: str, place: str, weather_descriptor: WeatherDescriptor):
         self.image_dir = Path(image_dir)
-        self.url = "stablediffusionweb.com"
         self.headers = {**HEADERS_TEMPLATE, 'Cookie': cookies}
         self.prompt = prompt
         self.place = place
@@ -91,7 +90,7 @@ class AvatarGenerator:
     async def _get_image_url(self) -> str:
         try:
             image = self._get_and_encode_image()
-            task_response = await self.create_task(image)
+            task_response = await self._create_task(image)
             uuid = task_response[0]['result']['data']['json'][0]['uuid']
             
             for _ in range(60):  # 1 minute timeout
