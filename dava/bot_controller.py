@@ -50,8 +50,8 @@ class BotController:
                 var_name = event.data.decode().split('-')[1]
                 del self._config[var_name]
                 await event.respond(f"✅ {var_name} has been deleted")
-            elif event.data.startswith(b'removetime-'):
-                time_str = event.data.decode().split('_')[1]
+            elif event.data.startswith(b'deletetime-'):
+                time_str = event.data.decode().split('-')[1]
                 schedule = self._config.load_schedule()
                 if time_str in schedule:
                     schedule.remove(time_str)
@@ -158,7 +158,7 @@ class BotController:
             await event.respond("Please send the new time in HH:MM format")
             self._pending_time = True  # Track that we're expecting a time input
 
-        @self.client.on(events.NewMessage(pattern='/remove_time'))
+        @self.client.on(events.NewMessage(pattern='/delete_time'))
         async def remove_schedule(event):
             await self._check_allowed_chat(event)
             try:
@@ -171,7 +171,7 @@ class BotController:
                 for time_str in schedule:
                     buttons.append([telethon.tl.types.KeyboardButtonCallback(
                         text=time_str,
-                        data=f"removetime-{time_str}".encode()
+                        data=f"deletetime-{time_str}".encode()
                     )])
                 await event.respond(
                     "Select time to remove:",
@@ -219,7 +219,7 @@ class BotController:
             ('update', 'Force avatar update now'),
             ('schedule', 'Show update schedule'),
             ('add_time', 'Add new update time (HH:MM)'),
-            ('remove_time', 'Remove update time (HH:MM)'),
+            ('delete_time', 'Delete update time (HH:MM)'),
             ('logs', 'Show recent logs'),
             ('settings', 'Show current settings in copy-friendly format')
         ]
@@ -236,7 +236,7 @@ class BotController:
 /delete_variable - Delete config variable
 /schedule - Show update schedule
 /add_time HH:MM - Add new update time
-/remove_time HH:MM - Remove update time
+/delete_time HH:MM - Delete update time
 /update - Force update now
 /help - Show this message"""
         logger.info(f"chat_id {event.chat_id}")
@@ -261,8 +261,8 @@ class BotController:
             self._config['previous_prompt_text']= self._config.prompt_text
             return "✅ Avatar updated!"
         except Exception as e:
-            error = f"error while updating avatar {str(e)}"
-            logger.error(error)
+            error = f"error while updating avatar: {str(e)}"
+            logger.exception(e)
             return error
         finally:
             self._is_job_running = False
