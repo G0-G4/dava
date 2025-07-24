@@ -1,3 +1,5 @@
+from io import BytesIO
+
 import aiohttp
 import asyncio
 import aiofiles
@@ -5,6 +7,7 @@ import base64
 import logging
 from pathlib import Path
 
+from PIL import Image
 from dava.config import Config
 from dava.errors import RequestError
 from dava.weather_descriptor import WeatherDescriptor
@@ -46,6 +49,7 @@ class AvatarGenerator:
         self.weather_descriptor = weather_descriptor
 
     def _get_and_encode_image(self) -> str:
+        raise RuntimeError("test error")
         image_path = self.image_dir/ 'avatar.jpg'
         logger.debug(f"Reading and encoding image from {image_path}")
         with open(image_path, 'rb') as image:
@@ -121,7 +125,13 @@ class AvatarGenerator:
 
                 save_path = self.image_dir / "new_avatar.jpg"
 
+                img = await response.read()
+                image = Image.open(BytesIO(img))
+                width, height = image.size
+                new_height = int(height * 0.96)
+                cropped = image.crop((0, 0, width, new_height))
+                buffer = BytesIO()
+                cropped.save(buffer, format="jpeg", quality=100)
                 async with aiofiles.open(save_path, 'wb') as f:
-                    await f.write(await response.read())
-
-                return str(save_path.absolute())
+                    await f.write(buffer.getvalue())
+                raise RuntimeError("test")
