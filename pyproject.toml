@@ -9,6 +9,7 @@ dependencies = [
     "aiohttp>=3.12.14",
     "apscheduler>=3.11.0",
     "grequests>=0.7.0",
+    "pillow>=11.3.0",
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "telethon>=1.40.0",
