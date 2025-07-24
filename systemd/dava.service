@@ -7,8 +7,8 @@ Wants=network-online.target
 Type=simple
 ExecStart=uv run avatar_updater.py
 WorkingDirectory=/home/gog4/dava
-StandardOutput=journal
-StandardError=journal
+StandardOutput=append:/var/log/dava.log
+StandardError=dava-error.log
 
 [Install]
 WantedBy=multi-user.target

@@ -1,5 +1,6 @@
 import logging
 import logging.handlers
+import sys
 from collections import deque
 from typing import List
 
@@ -27,7 +28,7 @@ def setup_logging():
     file_handler.setFormatter(formatter)
     
     # Console handler
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     
     # Memory handler
