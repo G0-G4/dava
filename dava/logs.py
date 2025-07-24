@@ -16,7 +16,7 @@ def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s')
     
     # File handler
     file_handler = logging.handlers.RotatingFileHandler(
@@ -40,8 +40,9 @@ def setup_logging():
     root_logger.addHandler(memory_handler)
     
     # Set lower level for third-party loggers
-    for logger_name in ['telethon', 'aiohttp', 'asyncio']:
+    for logger_name in ['aiohttp', 'asyncio']:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
+    logging.getLogger('telethon').setLevel(logging.ERROR)
 
 def get_recent_logs(count: int = 50) -> List[str]:
     """Get recent log entries from memory buffer.
