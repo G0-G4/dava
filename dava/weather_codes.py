@@ -8,7 +8,6 @@ codes = {
             "mood_description": "cheerful and energetic, summer vibes",
             "weather_effects": "subtle heat haze, sun glare on surfaces",
             "clothing": "Light summer clothes, sunglasses, sunhat, t-shirt, shorts or light dress",
-            "image": "http://openweathermap.org/img/wn/01d@2x.png"
         },
         "night": {
             "description": "Clear",
@@ -18,7 +17,6 @@ codes = {
             "mood_description": "peaceful and serene, tranquil night",
             "weather_effects": "cool night breeze visible in breath, crisp air",
             "clothing": "Light jacket or sweater, long pants, comfortable shoes for evening walk",
-            "image": "http://openweathermap.org/img/wn/01n@2x.png"
         }
     },
     "1": {
@@ -30,7 +28,6 @@ codes = {
             "mood_description": "pleasant and comfortable",
             "weather_effects": "gentle breeze, occasional cloud shadows moving across landscape",
             "clothing": "T-shirt with light jacket optional, cap or hat, comfortable shoes",
-            "image": "http://openweathermap.org/img/wn/01d@2x.png"
         },
         "night": {
             "description": "Mainly Clear",
@@ -40,7 +37,6 @@ codes = {
             "mood_description": "calm with dynamic lighting",
             "weather_effects": "cool temperature, occasional breeze",
             "clothing": "Light to medium jacket, jeans or long pants, closed shoes",
-            "image": "http://openweathermap.org/img/wn/01n@2x.png"
         }
     },
     "2": {
@@ -52,7 +48,6 @@ codes = {
             "mood_description": "dynamic and photogenic",
             "weather_effects": "cloud shadows moving across landscape, breeze",
             "clothing": "Layered clothing for variable conditions, light jacket optional",
-            "image": "http://openweathermap.org/img/wn/02d@2x.png"
         },
         "night": {
             "description": "Partly Cloudy",
@@ -62,7 +57,6 @@ codes = {
             "mood_description": "mysterious and dramatic",
             "weather_effects": "cool breeze, occasional moonlight bursts",
             "clothing": "Medium warmth jacket, scarf optional, comfortable walking shoes",
-            "image": "http://openweathermap.org/img/wn/02n@2x.png"
         }
     },
     "3": {
@@ -74,7 +68,6 @@ codes = {
             "mood_description": "calm and subdued",
             "weather_effects": "still air, potential light drizzle",
             "clothing": "Light sweater or jacket, long pants, umbrella just in case",
-            "image": "http://openweathermap.org/img/wn/03d@2x.png"
         },
         "night": {
             "description": "Cloudy",
@@ -84,7 +77,6 @@ codes = {
             "mood_description": "gloomy and urban",
             "weather_effects": "damp air, possible light mist",
             "clothing": "Warmer jacket, possibly waterproof layer, sturdy shoes",
-            "image": "http://openweathermap.org/img/wn/03n@2x.png"
         }
     },
     "45": {
@@ -96,7 +88,6 @@ codes = {
             "mood_description": "mysterious and atmospheric",
             "weather_effects": "swirling fog particles, damp surfaces",
             "clothing": "Waterproof jacket, warm layers, high visibility clothing if near roads",
-            "image": "http://openweathermap.org/img/wn/50d@2x.png"
         },
         "night": {
             "description": "Foggy",
@@ -106,7 +97,6 @@ codes = {
             "mood_description": "eerie and suspenseful",
             "weather_effects": "heavy fog reducing visibility, damp cold",
             "clothing": "Reflective or bright clothing, warm waterproof outer layer, boots",
-            "image": "http://openweathermap.org/img/wn/50n@2x.png"
         }
     },
     "48": {
@@ -118,7 +108,6 @@ codes = {
             "mood_description": "magical but extremely cold",
             "weather_effects": "freezing fog, ice formation, visible breath",
             "clothing": "Heavy winter coat, thermal layers, gloves, scarf, hat, insulated boots",
-            "image": "http://openweathermap.org/img/wn/50d@2x.png"
         },
         "night": {
             "description": "Rime Fog",
@@ -128,7 +117,6 @@ codes = {
             "mood_description": "dangerously cold and quiet",
             "weather_effects": "black ice formation, freezing fog",
             "clothing": "Extreme cold weather gear, multiple layers, face protection, ice grips for shoes",
-            "image": "http://openweathermap.org/img/wn/50n@2x.png"
         }
     },
     "51": {
@@ -140,7 +128,6 @@ codes = {
             "mood_description": "fresh and revitalizing",
             "weather_effects": "fine mist in air, dripping water",
             "clothing": "Light waterproof jacket or umbrella, water-resistant shoes",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Light Drizzle",
@@ -150,7 +137,6 @@ codes = {
             "mood_description": "urban and reflective",
             "weather_effects": "fine rain mist, dripping sounds",
             "clothing": "Waterproof windbreaker, hood or hat, shoes that can handle wet surfaces",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "53": {
@@ -162,7 +148,6 @@ codes = {
             "mood_description": "calm and rainy",
             "weather_effects": "visible rain streaks, constant dripping",
             "clothing": "Proper rain jacket with hood, waterproof shoes or boots",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Drizzle",
@@ -172,7 +157,6 @@ codes = {
             "mood_description": "urban rain atmosphere",
             "weather_effects": "steady rain, flowing gutters",
             "clothing": "Waterproof coat, possibly rain pants, waterproof footwear",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "55": {
@@ -184,7 +168,6 @@ codes = {
             "mood_description": "gloomy and damp",
             "weather_effects": "thick rain mist, soaked surfaces",
             "clothing": "Full rain gear including waterproof pants, rubber boots, rain hat",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Heavy Drizzle",
@@ -194,7 +177,6 @@ codes = {
             "mood_description": "dangerously wet and dark",
             "weather_effects": "heavy misty rain, poor visibility",
             "clothing": "High-visibility rain gear, waterproof everything, possibly waders in extreme cases",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "56": {
@@ -206,7 +188,6 @@ codes = {
             "mood_description": "dangerously slippery",
             "weather_effects": "invisible ice formation",
             "clothing": "Heavy waterproof winter gear, ice grips for shoes",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Light Freezing Drizzle",
@@ -216,7 +197,6 @@ codes = {
             "mood_description": "treacherous and dangerous",
             "weather_effects": "black ice formation",
             "clothing": "Extreme cold weather gear with ice grips, avoid going out",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "57": {
@@ -228,7 +208,6 @@ codes = {
             "mood_description": "hazardous winter conditions",
             "weather_effects": "ice accumulation on everything",
             "clothing": "Full winter gear with ice grips, avoid unnecessary travel",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Freezing Drizzle",
@@ -238,7 +217,6 @@ codes = {
             "mood_description": "severe winter hazard",
             "weather_effects": "rapid ice accumulation",
             "clothing": "Stay indoors if possible, extreme winter gear if going out",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "61": {
@@ -250,7 +228,6 @@ codes = {
             "mood_description": "fresh and rainy",
             "weather_effects": "visible raindrops and splashes",
             "clothing": "Waterproof jacket or good umbrella, water-resistant shoes",
-            "image": "http://openweathermap.org/img/wn/10d@2x.png"
         },
         "night": {
             "description": "Light Rain",
@@ -260,7 +237,6 @@ codes = {
             "mood_description": "cozy urban rain",
             "weather_effects": "steady rain sounds",
             "clothing": "Waterproof outer layer, shoes that can handle wet surfaces, possibly rain pants",
-            "image": "http://openweathermap.org/img/wn/10n@2x.png"
         }
     },
     "63": {
@@ -272,7 +248,6 @@ codes = {
             "mood_description": "wet and rainy",
             "weather_effects": "constant rain, flowing water",
             "clothing": "Full rain protection - jacket with hood, waterproof pants, rubber boots",
-            "image": "http://openweathermap.org/img/wn/10d@2x.png"
         },
         "night": {
             "description": "Rain",
@@ -282,7 +257,6 @@ codes = {
             "mood_description": "stormy and wet",
             "weather_effects": "torrential rain sounds",
             "clothing": "High-quality rain gear, waterproof boots, possibly high-visibility elements",
-            "image": "http://openweathermap.org/img/wn/10n@2x.png"
         }
     },
     "65": {
@@ -294,7 +268,6 @@ codes = {
             "mood_description": "severe and dangerous",
             "weather_effects": "blinding rain, potential flooding",
             "clothing": "Full waterproof suit, rubber boots, waterproof hat, stay indoors if possible",
-            "image": "http://openweathermap.org/img/wn/10d@2x.png"
         },
         "night": {
             "description": "Heavy Rain",
@@ -304,7 +277,6 @@ codes = {
             "mood_description": "dangerous storm conditions",
             "weather_effects": "roaring rain sounds",
             "clothing": "Extreme weather gear, high-visibility elements, waterproof everything, avoid going out",
-            "image": "http://openweathermap.org/img/wn/10n@2x.png"
         }
     },
     "66": {
@@ -316,7 +288,6 @@ codes = {
             "mood_description": "dangerously icy",
             "weather_effects": "invisible ice formation",
             "clothing": "Heavy winter gear with ice grips, extreme caution",
-            "image": "http://openweathermap.org/img/wn/10d@2x.png"
         },
         "night": {
             "description": "Light Freezing Rain",
@@ -326,7 +297,6 @@ codes = {
             "mood_description": "treacherous and hazardous",
             "weather_effects": "silent ice accumulation",
             "clothing": "Stay indoors if possible, extreme winter gear with ice grips",
-            "image": "http://openweathermap.org/img/wn/10n@2x.png"
         }
     },
     "67": {
@@ -338,7 +308,6 @@ codes = {
             "mood_description": "severe winter storm",
             "weather_effects": "rapid ice accumulation",
             "clothing": "Stay indoors, emergency winter gear if absolutely must go out",
-            "image": "http://openweathermap.org/img/wn/10d@2x.png"
         },
         "night": {
             "description": "Freezing Rain",
@@ -348,7 +317,6 @@ codes = {
             "mood_description": "ice storm emergency",
             "weather_effects": "creaking ice sounds",
             "clothing": "Avoid all travel, emergency shelter recommended",
-            "image": "http://openweathermap.org/img/wn/10n@2x.png"
         }
     },
     "71": {
@@ -360,7 +328,6 @@ codes = {
             "mood_description": "peaceful winter scene",
             "weather_effects": "falling snowflakes collecting on surfaces",
             "clothing": "Winter jacket, gloves, hat, waterproof boots, scarf",
-            "image": "http://openweathermap.org/img/wn/13d@2x.png"
         },
         "night": {
             "description": "Light Snow",
@@ -370,7 +337,6 @@ codes = {
             "mood_description": "magical winter night",
             "weather_effects": "snowflakes visible in light cones",
             "clothing": "Insulated winter gear, thermal layers, warm boots, gloves",
-            "image": "http://openweathermap.org/img/wn/13n@2x.png"
         }
     },
     "73": {
@@ -382,7 +348,6 @@ codes = {
             "mood_description": "proper winter day",
             "weather_effects": "steady snowfall, accumulating quickly",
             "clothing": "Heavy winter coat, snow pants, insulated boots, gloves, scarf, hat",
-            "image": "http://openweathermap.org/img/wn/13d@2x.png"
         },
         "night": {
             "description": "Snow",
@@ -392,7 +357,6 @@ codes = {
             "mood_description": "serene but hazardous",
             "weather_effects": "heavy snow accumulation",
             "clothing": "Full winter gear with multiple layers, face protection, waterproof snow boots",
-            "image": "http://openweathermap.org/img/wn/13n@2x.png"
         }
     },
     "75": {
@@ -404,7 +368,6 @@ codes = {
             "mood_description": "dangerous blizzard",
             "weather_effects": "howling wind, blowing snow",
             "clothing": "Extreme cold weather gear, face mask, goggles, multiple thermal layers",
-            "image": "http://openweathermap.org/img/wn/13d@2x.png"
         },
         "night": {
             "description": "Heavy Snow",
@@ -414,7 +377,6 @@ codes = {
             "mood_description": "life-threatening storm",
             "weather_effects": "howling wind, deep snow drifts",
             "clothing": "Arctic expedition-level clothing, avoid going outside if possible",
-            "image": "http://openweathermap.org/img/wn/13n@2x.png"
         }
     },
     "77": {
@@ -426,7 +388,6 @@ codes = {
             "mood_description": "dreary winter day",
             "weather_effects": "fine snow grains blowing in wind",
             "clothing": "Windproof winter gear, face protection, warm layers",
-            "image": "http://openweathermap.org/img/wn/13d@2x.png"
         },
         "night": {
             "description": "Snow Grains",
@@ -436,7 +397,6 @@ codes = {
             "mood_description": "unpleasant winter night",
             "weather_effects": "blowing snow grains",
             "clothing": "Full face protection, windproof layers, ice grips for shoes",
-            "image": "http://openweathermap.org/img/wn/13n@2x.png"
         }
     },
     "80": {
@@ -448,7 +408,6 @@ codes = {
             "mood_description": "fresh and dynamic",
             "weather_effects": "occasional rain, possible rainbows",
             "clothing": "Light waterproof layer that can be removed, versatile shoes",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Light Showers",
@@ -458,7 +417,6 @@ codes = {
             "mood_description": "fresh night showers",
             "weather_effects": "passing light rain",
             "clothing": "Light waterproof jacket, shoes that can handle wet surfaces",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "81": {
@@ -470,7 +428,6 @@ codes = {
             "mood_description": "unsettled and showery",
             "weather_effects": "regular moderate rain showers",
             "clothing": "Waterproof jacket always handy, waterproof shoes",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Showers",
@@ -480,7 +437,6 @@ codes = {
             "mood_description": "unsettled rainy night",
             "weather_effects": "intermittent moderate rain",
             "clothing": "Proper rain jacket, waterproof footwear",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "82": {
@@ -492,7 +448,6 @@ codes = {
             "mood_description": "dramatic and intense",
             "weather_effects": "violent rain bursts",
             "clothing": "Full waterproof gear, high boots, stay sheltered during downpours",
-            "image": "http://openweathermap.org/img/wn/09d@2x.png"
         },
         "night": {
             "description": "Heavy Showers",
@@ -502,7 +457,6 @@ codes = {
             "mood_description": "dangerous night storms",
             "weather_effects": "roaring downpour sounds",
             "clothing": "Full storm gear, avoid going out during downpours",
-            "image": "http://openweathermap.org/img/wn/09n@2x.png"
         }
     },
     "85": {
@@ -514,7 +468,6 @@ codes = {
             "mood_description": "wintery with sunny breaks",
             "weather_effects": "occasional light snow",
             "clothing": "Winter jacket, warm layers that can be adjusted",
-            "image": "http://openweathermap.org/img/wn/13d@2x.png"
         },
         "night": {
             "description": "Light Snow Showers",
@@ -524,7 +477,6 @@ codes = {
             "mood_description": "wintery night showers",
             "weather_effects": "occasional light snow",
             "clothing": "Warm winter layers, waterproof boots",
-            "image": "http://openweathermap.org/img/wn/13n@2x.png"
         }
     },
     "86": {
@@ -536,7 +488,6 @@ codes = {
             "mood_description": "steady winter weather",
             "weather_effects": "regular moderate snow",
             "clothing": "Full winter gear, snow pants, waterproof boots",
-            "image": "http://openweathermap.org/img/wn/13d@2x.png"
         },
         "night": {
             "description": "Snow Showers",
@@ -546,7 +497,6 @@ codes = {
             "mood_description": "hazardous winter night",
             "weather_effects": "steady night snow",
             "clothing": "Full winter gear with good traction footwear",
-            "image": "http://openweathermap.org/img/wn/13n@2x.png"
         }
     },
     "95": {
@@ -558,7 +508,6 @@ codes = {
             "mood_description": "intense and electrifying",
             "weather_effects": "heavy rain, lightning, possible hail",
             "clothing": "Waterproof everything, rubber boots, avoid metal objects, stay indoors",
-            "image": "http://openweathermap.org/img/wn/11d@2x.png"
         },
         "night": {
             "description": "Thunderstorm",
@@ -568,7 +517,6 @@ codes = {
             "mood_description": "dramatic and powerful",
             "weather_effects": "frequent lightning, booming thunder",
             "clothing": "Full rain protection, avoid going outside during lightning",
-            "image": "http://openweathermap.org/img/wn/11n@2x.png"
         }
     },
     "96": {
@@ -580,7 +528,6 @@ codes = {
             "mood_description": "intense and damaging",
             "weather_effects": "small hail, thunder, lightning",
             "clothing": "Helmet or hard hat recommended, thick layers for hail protection",
-            "image": "http://openweathermap.org/img/wn/11d@2x.png"
         },
         "night": {
             "description": "Light Thunderstorms With Hail",
@@ -590,7 +537,6 @@ codes = {
             "mood_description": "dangerous night storm",
             "weather_effects": "hail impacts, thunder",
             "clothing": "Stay indoors if possible, hard hat if outside",
-            "image": "http://openweathermap.org/img/wn/11n@2x.png"
         }
     },
     "99": {
@@ -602,7 +548,6 @@ codes = {
             "mood_description": "destructive and dangerous",
             "weather_effects": "large hail, frequent lightning",
             "clothing": "Seek immediate shelter, avoid going outside",
-            "image": "http://openweathermap.org/img/wn/11d@2x.png"
         },
         "night": {
             "description": "Thunderstorm With Hail",
@@ -612,7 +557,6 @@ codes = {
             "mood_description": "extremely hazardous",
             "weather_effects": "destructive hail, intense lightning",
             "clothing": "Stay in sturdy shelter, avoid windows",
-            "image": "http://openweathermap.org/img/wn/11n@2x.png"
         }
     }
 }

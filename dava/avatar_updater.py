@@ -1,25 +1,28 @@
-import asyncio
+import logging
+
 from telethon import TelegramClient
 from telethon.tl.functions.photos import UploadProfilePhotoRequest, DeletePhotosRequest
 from telethon.tl.types import InputPhoto
 
-from avatar_generator import AvatarGenerator
-from config import API_HASH, API_ID, COOKIES, IMAGE_DIR, PROMPT_TEXT, PLACE, LATITUDE, LONGITUDE, TIMEZONE
-from logs import setup_logging
-from weather_descriptor import WeatherDescriptor
+from dava.avatar_generator import AvatarGenerator
+from dava.config import Config
+logger = logging.getLogger(__name__)
 
 
 class AvatarUpdater:
-    def __init__(self, avatar_generator: AvatarGenerator):
+    def __init__(self, avatar_generator: AvatarGenerator, config: Config):
         self.avatar_generator = avatar_generator
-        self.client = TelegramClient("anon", API_ID, API_HASH)
+        self.client = TelegramClient("user_session", config.api_id, config.api_hash)
 
     async def async_update_avatar(self):
         async with self.client:
             img = await self.avatar_generator.save_image()
+            logger.debug("deleting avatar")
             await self._delete_avatar()
+            logger.debug("uploading new avatar")
             file = await self.client.upload_file(img)
             await self.client(UploadProfilePhotoRequest(file=file))
+            logger.info("avatar UPDATED!")
 
     async def _delete_avatar(self):
         photos = await self.client.get_profile_photos('me')
@@ -31,13 +34,3 @@ class AvatarUpdater:
                     file_reference=photos[0].file_reference
                 )]
             ))
-
-if __name__ == "__main__":
-    setup_logging()
-    async def main():
-        weather_descriptor = WeatherDescriptor(LATITUDE, LONGITUDE, TIMEZONE)
-        generator = AvatarGenerator(COOKIES, IMAGE_DIR, PROMPT_TEXT, PLACE, weather_descriptor)
-        updater = AvatarUpdater(generator)
-        await updater.async_update_avatar()
-
-    asyncio.run(main())

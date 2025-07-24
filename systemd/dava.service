@@ -1,0 +1,14 @@
+[Unit]
+Description=update telegram profile photo based on weather conditions
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=uv run avatar_updater.py
+WorkingDirectory=/home/gog4/dava
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

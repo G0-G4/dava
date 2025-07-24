@@ -1,6 +1,6 @@
 import aiohttp
 from typing import Dict, Any, Optional
-from errors import RequestError
+from dava.errors import RequestError
 
 async def make_request(
     url: str,

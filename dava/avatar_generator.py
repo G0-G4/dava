@@ -4,9 +4,11 @@ import aiofiles
 import base64
 import logging
 from pathlib import Path
-from errors import RequestError
-from weather_descriptor import WeatherDescriptor
-from common import make_request
+
+from dava.config import Config
+from dava.errors import RequestError
+from dava.weather_descriptor import WeatherDescriptor
+from dava.common import make_request
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +40,13 @@ IMAGE_CONFIG = {
     "image_cfg_scale": 0.5
 }
 class AvatarGenerator:
-    def __init__(self, cookies: str, image_dir: str, prompt: str, place: str, weather_descriptor: WeatherDescriptor):
-        self.image_dir = Path(image_dir)
-        self.headers = {**HEADERS_TEMPLATE, 'Cookie': cookies}
-        self.prompt = prompt
-        self.place = place
+    def __init__(self, weather_descriptor: WeatherDescriptor, config: Config):
+        self._config = config
+        self.image_dir = Path(config.image_dir)
         self.weather_descriptor = weather_descriptor
 
     def _get_and_encode_image(self) -> str:
-        image_path = self.image_dir / 'avatar.jpg'
+        image_path = self.image_dir/ 'avatar.jpg'
         logger.debug(f"Reading and encoding image from {image_path}")
         with open(image_path, 'rb') as image:
             image_b64 = base64.b64encode(image.read()).decode()
@@ -67,17 +67,17 @@ class AvatarGenerator:
                 }
             }
         }
-        response = await make_request(url, self.headers, "POST", task_data)
+        response = await make_request(url, {**HEADERS_TEMPLATE, 'Cookie': self._config.cookies}, "POST", task_data)
         logger.debug("Generation task created successfully")
         return response
 
     async def _prepare_prompt(self):
         weather = await self.weather_descriptor.get_forecast()
-        prompt = self.prompt
-        weather = {**weather, "place": self.place}
+        prompt = self._config.prompt_text
+        weather = {**weather, "place": self._config.place}
         for key, val in weather.items():
             prompt = prompt.replace('{'+key+'}', val)
-        logger.debug(f"Prepared prompt: {prompt}")
+        logger.info(f"Prepared prompt: {prompt}")
         return prompt
 
     async def _check_status(self, uuid: str):
@@ -88,7 +88,7 @@ class AvatarGenerator:
             }
         }
         logger.debug(f"Checking status for task {uuid}")
-        response = await make_request(url, self.headers, "POST", check_data)
+        response = await make_request(url, {**HEADERS_TEMPLATE, 'Cookie': self._config.cookies}, "POST", check_data)
         status = response[0]['result']['data']['json'][0]['status']
         logger.debug(f"Task {uuid} status: {status}")
         return response
