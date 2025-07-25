@@ -261,7 +261,7 @@ class BotController:
         try:
             self._is_job_running = True
             await self.updater.async_update_avatar()
-            used_prompt = self.avatar_generator.prepare_prompt()
+            used_prompt = await self.avatar_generator.prepare_prompt()
             self._config['previous_prompt_text'] = used_prompt
             logger.info(f"used prompt {used_prompt}")
             return "✅ Avatar updated!"
