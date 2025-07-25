@@ -49,7 +49,6 @@ class AvatarGenerator:
         self.weather_descriptor = weather_descriptor
 
     def _get_and_encode_image(self) -> str:
-        raise RuntimeError("test error")
         image_path = self.image_dir/ 'avatar.jpg'
         logger.debug(f"Reading and encoding image from {image_path}")
         with open(image_path, 'rb') as image:
@@ -134,4 +133,3 @@ class AvatarGenerator:
                 cropped.save(buffer, format="jpeg", quality=100)
                 async with aiofiles.open(save_path, 'wb') as f:
                     await f.write(buffer.getvalue())
-                raise RuntimeError("test")
