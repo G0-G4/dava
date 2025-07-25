@@ -116,7 +116,9 @@ class AvatarGenerator:
         raise RequestError("Image generation timed out")
 
     async def save_image(self) -> str:
-        image_url = await self._get_image_url()
+        image_url = self._config.image_url
+        if not image_url:
+            image_url = await self._get_image_url()
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as response:
                 if response.status != 200:
@@ -133,3 +135,4 @@ class AvatarGenerator:
                 cropped.save(buffer, format="jpeg", quality=100)
                 async with aiofiles.open(save_path, 'wb') as f:
                     await f.write(buffer.getvalue())
+            return str(save_path.absolute())

@@ -98,3 +98,7 @@ class Config:
     def weather(self):
         return self._get_variable("weather", required=False)
 
+    @property
+    def image_url(self):
+        return self._get_variable("image_url", required=False)
+
