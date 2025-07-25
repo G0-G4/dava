@@ -57,7 +57,7 @@ class AvatarGenerator:
 
     async def _create_task(self, image_b64: str):
         url = "https://stablediffusionweb.com/api/generate.image.addTasks?batch=1"
-        prompt = await self._prepare_prompt()
+        prompt = await self.prepare_prompt()
         logger.debug(f"Creating generation task with prompt: {prompt}")
         task_data = {
             "0": {
@@ -74,7 +74,7 @@ class AvatarGenerator:
         logger.debug("Generation task created successfully")
         return response
 
-    async def _prepare_prompt(self):
+    async def prepare_prompt(self):
         weather = await self.weather_descriptor.get_forecast()
         prompt = self._config.prompt_text
         weather = {**weather, "place": self._config.place}

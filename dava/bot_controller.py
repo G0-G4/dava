@@ -7,6 +7,7 @@ import telethon.tl.functions.bots
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava import AvatarUpdater
+from dava.avatar_generator import AvatarGenerator
 from dava.config import Config
 from dava.logs import get_recent_logs
 from dava.weather_descriptor import WeatherDescriptor
@@ -14,9 +15,10 @@ from dava.weather_descriptor import WeatherDescriptor
 logger = logging.getLogger(__name__)
 
 class BotController:
-    def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, config: Config):
+    def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, avatar_generator: AvatarGenerator, config: Config):
         self.updater = updater
         self.weather_descriptor = weather_descriptor
+        self.avatar_generator = avatar_generator
         self.client = TelegramClient("bot_session", config.api_id, config.api_hash)
         self.scheduler = AsyncIOScheduler()
         self._config = config
@@ -253,11 +255,15 @@ class BotController:
             logger.info("job is already running")
             return "job is already running"
         if self._config.previous_prompt_text == self._config.prompt_text:
-            return "prompt hasn't changed, no update needed"
+            message = "prompt hasn't changed, no update needed"
+            logger.info(message)
+            return message
         try:
             self._is_job_running = True
             await self.updater.async_update_avatar()
-            self._config['previous_prompt_text']= self._config.prompt_text
+            used_prompt = self.avatar_generator.prepare_prompt()
+            self._config['previous_prompt_text'] = used_prompt
+            logger.info(f"used prompt {used_prompt}")
             return "✅ Avatar updated!"
         except Exception as e:
             error = f"error while updating avatar: {str(e)}"

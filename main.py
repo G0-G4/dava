@@ -16,7 +16,7 @@ if __name__ == "__main__":
         generator = AvatarGenerator(weather_descriptor, config)
         updater = AvatarUpdater(generator, config)
 
-        bot = BotController(updater, weather_descriptor, config)
+        bot = BotController(updater, weather_descriptor, generator, config)
         # Start bot
         await bot.start()
 
