@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime
 
@@ -200,7 +199,7 @@ class BotController:
             await self._check_allowed_chat(event)
             parts = event.text.split()
             num = int(parts[1]) if len(parts) > 1 else 50
-            logs = "\n".join(get_recent_logs(num))[:4096]
+            logs = "\n".join(get_recent_logs(num))[-4096:]
             await event.respond(logs)
 
         @self.client.on(events.NewMessage(pattern='/weather'))
