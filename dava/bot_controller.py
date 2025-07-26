@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 
@@ -208,7 +209,7 @@ class BotController:
         async def current_weather(event):
             await self._check_allowed_chat(event)
             weather = await self.weather_descriptor.get_forecast()
-            await event.respond(f"```{str(weather)}````")
+            await event.respond(f"```{json.dumps(weather)}```")
 
     async def _setup_menu(self):
         commands = [
@@ -222,7 +223,8 @@ class BotController:
             ('add_time', 'Add new update time (HH:MM)'),
             ('delete_time', 'Delete update time (HH:MM)'),
             ('logs', 'Show recent logs'),
-            ('settings', 'Show current settings in copy-friendly format')
+            ('settings', 'Show current settings in copy-friendly format'),
+            ('weather', 'Show current weather')
         ]
         await self.client(telethon.tl.functions.bots.SetBotCommandsRequest(
             scope=telethon.tl.types.BotCommandScopeDefault(),
@@ -239,7 +241,8 @@ class BotController:
 /add_time HH:MM - Add new update time
 /delete_time HH:MM - Delete update time
 /update - Force update now
-/help - Show this message"""
+/help - Show this message
+/weather - Show current weather"""
         logger.info(f"chat_id {event.chat_id}")
         await event.respond(help_text)
 
@@ -254,16 +257,16 @@ class BotController:
         if self._is_job_running:
             logger.info("job is already running")
             return "job is already running"
-        if self._config.previous_prompt_text == self._config.prompt_text:
+        prompt = await self.prepare_prompt()
+        if self._config.previous_prompt_text == prompt:
             message = "prompt hasn't changed, no update needed"
             logger.info(message)
             return message
         try:
             self._is_job_running = True
-            await self.updater.async_update_avatar()
-            used_prompt = await self.avatar_generator.prepare_prompt()
-            self._config['previous_prompt_text'] = used_prompt
-            logger.info(f"used prompt {used_prompt}")
+            await self.updater.async_update_avatar(prompt)
+            self._config['previous_prompt_text'] = prompt
+            logger.info("Avatar updated!")
             return "✅ Avatar updated!"
         except Exception as e:
             error = f"error while updating avatar: {str(e)}"
@@ -271,6 +274,15 @@ class BotController:
             return error
         finally:
             self._is_job_running = False
+
+    async def prepare_prompt(self):
+        weather = await self.weather_descriptor.get_forecast()
+        prompt = self._config.prompt_text
+        weather = {**weather, "place": self._config.place}
+        for key, val in weather.items():
+            prompt = prompt.replace('{'+key+'}', val)
+        logger.info(f"Prepared prompt: {prompt}")
+        return prompt
 
 
     def _load_and_start_schedule(self):

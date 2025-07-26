@@ -14,15 +14,14 @@ class AvatarUpdater:
         self.avatar_generator = avatar_generator
         self.client = TelegramClient("user_session", config.api_id, config.api_hash)
 
-    async def async_update_avatar(self):
+    async def async_update_avatar(self, prompt: str):
         async with self.client:
-            img = await self.avatar_generator.save_image()
+            img = await self.avatar_generator.generate_and_save_image(prompt)
             logger.debug("deleting avatar")
             await self._delete_avatar()
             logger.debug("uploading new avatar")
             file = await self.client.upload_file(img)
             await self.client(UploadProfilePhotoRequest(file=file))
-            logger.info("avatar UPDATED!")
 
     async def _delete_avatar(self):
         photos = await self.client.get_profile_photos('me')

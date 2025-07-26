@@ -55,10 +55,8 @@ class AvatarGenerator:
             image_b64 = base64.b64encode(image.read()).decode()
             return f"data:image/jpeg;base64,{image_b64}"
 
-    async def _create_task(self, image_b64: str):
+    async def _create_task(self, image_b64: str, prompt: str):
         url = "https://stablediffusionweb.com/api/generate.image.addTasks?batch=1"
-        prompt = await self.prepare_prompt()
-        logger.debug(f"Creating generation task with prompt: {prompt}")
         task_data = {
             "0": {
                 "json": {
@@ -74,15 +72,6 @@ class AvatarGenerator:
         logger.debug("Generation task created successfully")
         return response
 
-    async def prepare_prompt(self):
-        weather = await self.weather_descriptor.get_forecast()
-        prompt = self._config.prompt_text
-        weather = {**weather, "place": self._config.place}
-        for key, val in weather.items():
-            prompt = prompt.replace('{'+key+'}', val)
-        logger.info(f"Prepared prompt: {prompt}")
-        return prompt
-
     async def _check_status(self, uuid: str):
         url = "https://stablediffusionweb.com/api/generate.image.getTasks?batch=1"
         check_data = {
@@ -96,9 +85,9 @@ class AvatarGenerator:
         logger.debug(f"Task {uuid} status: {status}")
         return response
 
-    async def _get_image_url(self) -> str:
+    async def _get_image_url(self, prompt:str) -> str:
         image = self._get_and_encode_image()
-        task_response = await self._create_task(image)
+        task_response = await self._create_task(image, prompt)
         uuid = task_response[0]['result']['data']['json'][0]['uuid']
 
         for _ in range(60):  # 1 minute timeout
@@ -115,10 +104,10 @@ class AvatarGenerator:
 
         raise RequestError("Image generation timed out")
 
-    async def save_image(self) -> str:
+    async def generate_and_save_image(self, prompt: str) -> str:
         image_url = self._config.image_url
         if not image_url:
-            image_url = await self._get_image_url()
+            image_url = await self._get_image_url(prompt)
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as response:
                 if response.status != 200:

@@ -1,5 +1,5 @@
+import logging
 import os
-from typing import Any, Callable
 
 from dotenv import load_dotenv
 
@@ -8,12 +8,20 @@ from pathlib import Path
 from typing import Dict, Any
 
 SCHEDULE_FILE = Path("../schedule.json")
+logger = logging.getLogger(__name__)
 
 class Config:
 
     def __init__(self):
         load_dotenv()
         self._hidden = {"bot_token", "api_id", "api_hash", "image_dir", "previous_prompt_text"}
+        self._converters = {
+            'latitude': float,
+            'longitude': float,
+            'allowed_chat_id': int,
+            'weather': lambda x: json.loads(x),
+        }
+
         self._config_store = {}
         self.properties = [name for name, value in vars(Config).items() if isinstance(value, property)]
         self.init_config()
@@ -23,10 +31,15 @@ class Config:
         for p in self.properties:
             getattr(self, p)
 
+    def _get_converter(self, name):
+        return self._converters.get(name, str)
+
     def __setitem__(self, key, value):
-        self._config_store[key] = value
         if key in self.properties:
-            getattr(self, key) # convert value
+            self._config_store[key] = self._get_converter(key)(value)
+            return
+        self._config_store[key] = value
+
 
     def __delitem__(self, key):
         if key in self._config_store:
@@ -34,14 +47,15 @@ class Config:
             if key in self.properties:
                 getattr(self, key) # load default from env
 
-    def _get_variable(self, name: str, converter: Callable[[str], Any] = str, required=True) -> Any:
-        value = self._config_store.get(name, os.getenv(name))
-        if required and value is None:
-            raise RuntimeError(f"environment value {name} is not set")
-        if value is not None:
-            value = converter(value)
-        self._config_store[name] = value
-        return value
+    def _get_variable(self, name: str, required=True) -> Any:
+        env_variable = os.getenv(name)
+        if required and name not in self._config_store and env_variable is None:
+            raise RuntimeError(f"required variable {name} not set")
+        if name in self._config_store:
+            return self._config_store[name]
+        converted = self._get_converter(name)(env_variable) if env_variable is not None else None
+        self._config_store[name] = converted
+        return converted
 
     def all_variables(self) -> Dict[str, Any]:
         return {k: v for k, v in self._config_store.items() if k not in self._hidden}
@@ -75,10 +89,10 @@ class Config:
         return self._get_variable("api_hash")
     @property
     def latitude(self):
-        return self._get_variable("latitude", float)
+        return self._get_variable("latitude")
     @property
     def longitude(self):
-        return self._get_variable("longitude", float)
+        return self._get_variable("longitude")
     @property
     def timezone(self):
         return self._get_variable("timezone")
@@ -88,7 +102,7 @@ class Config:
 
     @property
     def allowed_chat_id(self):
-        return self._get_variable("allowed_chat_id", int)
+        return self._get_variable("allowed_chat_id")
 
     @property
     def previous_prompt_text(self):
