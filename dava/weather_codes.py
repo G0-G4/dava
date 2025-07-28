@@ -67,7 +67,7 @@ codes = {
             "lighting_description": "even diffused overcast lighting, no direct shadows",
             "mood_description": "calm and subdued",
             "weather_effects": "still air, potential light drizzle",
-            "clothing": "Light sweater or jacket, long pants, umbrella just in case",
+            "clothing": "Light sweater or jacket, long pants",
         },
         "night": {
             "description": "Cloudy",
@@ -196,7 +196,7 @@ codes = {
             "lighting_description": "cold artificial lights on icy surfaces",
             "mood_description": "treacherous and dangerous",
             "weather_effects": "black ice formation",
-            "clothing": "Extreme cold weather gear with ice grips, avoid going out",
+            "clothing": "Extreme cold weather gear with ice grips",
         }
     },
     "57": {
@@ -207,7 +207,7 @@ codes = {
             "lighting_description": "cold light reflecting off icy surfaces",
             "mood_description": "hazardous winter conditions",
             "weather_effects": "ice accumulation on everything",
-            "clothing": "Full winter gear with ice grips, avoid unnecessary travel",
+            "clothing": "Full winter gear with ice grips",
         },
         "night": {
             "description": "Freezing Drizzle",
@@ -216,7 +216,7 @@ codes = {
             "lighting_description": "lights reflecting off thick ice coatings",
             "mood_description": "severe winter hazard",
             "weather_effects": "rapid ice accumulation",
-            "clothing": "Stay indoors if possible, extreme winter gear if going out",
+            "clothing": "extreme winter gear",
         }
     },
     "61": {
@@ -227,7 +227,7 @@ codes = {
             "lighting_description": "soft diffused rainy light",
             "mood_description": "fresh and rainy",
             "weather_effects": "visible raindrops and splashes",
-            "clothing": "Waterproof jacket or good umbrella, water-resistant shoes",
+            "clothing": "good umbrella, water-resistant shoes",
         },
         "night": {
             "description": "Light Rain",
@@ -236,7 +236,7 @@ codes = {
             "lighting_description": "artificial lights reflecting off wet surfaces",
             "mood_description": "cozy urban rain",
             "weather_effects": "steady rain sounds",
-            "clothing": "Waterproof outer layer, shoes that can handle wet surfaces, possibly rain pants",
+            "clothing": "Waterproof outer layer, umbrella, shoes that can handle wet surfaces, possibly rain pants",
         }
     },
     "63": {
@@ -267,7 +267,7 @@ codes = {
             "lighting_description": "dark stormy light through heavy rain",
             "mood_description": "severe and dangerous",
             "weather_effects": "blinding rain, potential flooding",
-            "clothing": "Full waterproof suit, rubber boots, waterproof hat, stay indoors if possible",
+            "clothing": "Full waterproof suit, rubber boots, waterproof hat",
         },
         "night": {
             "description": "Heavy Rain",
@@ -276,7 +276,7 @@ codes = {
             "lighting_description": "near darkness with occasional lightning",
             "mood_description": "dangerous storm conditions",
             "weather_effects": "roaring rain sounds",
-            "clothing": "Extreme weather gear, high-visibility elements, waterproof everything, avoid going out",
+            "clothing": "Extreme weather gear, high-visibility elements, waterproof everything",
         }
     },
     "66": {
@@ -287,7 +287,7 @@ codes = {
             "lighting_description": "cold diffused light through freezing rain",
             "mood_description": "dangerously icy",
             "weather_effects": "invisible ice formation",
-            "clothing": "Heavy winter gear with ice grips, extreme caution",
+            "clothing": "Heavy winter gear with ice grips",
         },
         "night": {
             "description": "Light Freezing Rain",
@@ -296,7 +296,7 @@ codes = {
             "lighting_description": "cold artificial lights on icy surfaces",
             "mood_description": "treacherous and hazardous",
             "weather_effects": "silent ice accumulation",
-            "clothing": "Stay indoors if possible, extreme winter gear with ice grips",
+            "clothing": "extreme winter gear with ice grips",
         }
     },
     "67": {
@@ -307,7 +307,7 @@ codes = {
             "lighting_description": "cold light reflecting off ice coatings",
             "mood_description": "severe winter storm",
             "weather_effects": "rapid ice accumulation",
-            "clothing": "Stay indoors, emergency winter gear if absolutely must go out",
+            "clothing": "emergency winter gear",
         },
         "night": {
             "description": "Freezing Rain",
@@ -316,7 +316,7 @@ codes = {
             "lighting_description": "lights reflecting off thick ice layers",
             "mood_description": "ice storm emergency",
             "weather_effects": "creaking ice sounds",
-            "clothing": "Avoid all travel, emergency shelter recommended",
+            "clothing": "emergency winter gear",
         }
     },
     "71": {
@@ -336,7 +336,7 @@ codes = {
             "lighting_description": "streetlights illuminating falling snow",
             "mood_description": "magical winter night",
             "weather_effects": "snowflakes visible in light cones",
-            "clothing": "Insulated winter gear, thermal layers, warm boots, gloves",
+            "clothing": "Winter jacket, gloves, hat, waterproof boots, scarf",
         }
     },
     "73": {
@@ -356,7 +356,7 @@ codes = {
             "lighting_description": "snow amplifying ambient night lights",
             "mood_description": "serene but hazardous",
             "weather_effects": "heavy snow accumulation",
-            "clothing": "Full winter gear with multiple layers, face protection, waterproof snow boots",
+            "clothing": "Heavy winter coat, snow pants, insulated boots, gloves, scarf, hat",
         }
     },
     "75": {
@@ -376,7 +376,7 @@ codes = {
             "lighting_description": "near darkness with blowing snow",
             "mood_description": "life-threatening storm",
             "weather_effects": "howling wind, deep snow drifts",
-            "clothing": "Arctic expedition-level clothing, avoid going outside if possible",
+            "clothing": "Extreme cold weather gear, face mask, goggles, multiple thermal layers",
         }
     },
     "77": {
@@ -396,7 +396,7 @@ codes = {
             "lighting_description": "dim artificial lights on icy surfaces",
             "mood_description": "unpleasant winter night",
             "weather_effects": "blowing snow grains",
-            "clothing": "Full face protection, windproof layers, ice grips for shoes",
+            "clothing": "Windproof winter gear, face protection, warm layers",
         }
     },
     "80": {
@@ -447,7 +447,7 @@ codes = {
             "lighting_description": "dark during downpours, bright between",
             "mood_description": "dramatic and intense",
             "weather_effects": "violent rain bursts",
-            "clothing": "Full waterproof gear, high boots, stay sheltered during downpours",
+            "clothing": "Full waterproof gear, high boots",
         },
         "night": {
             "description": "Heavy Showers",
@@ -507,7 +507,7 @@ codes = {
             "lighting_description": "dramatic alternating dark and lightning-lit",
             "mood_description": "intense and electrifying",
             "weather_effects": "heavy rain, lightning, possible hail",
-            "clothing": "Waterproof everything, rubber boots, avoid metal objects, stay indoors",
+            "clothing": "Waterproof everything, rubber boots, avoid metal objects",
         },
         "night": {
             "description": "Thunderstorm",
@@ -516,7 +516,7 @@ codes = {
             "lighting_description": "sudden lightning flashes revealing details",
             "mood_description": "dramatic and powerful",
             "weather_effects": "frequent lightning, booming thunder",
-            "clothing": "Full rain protection, avoid going outside during lightning",
+            "clothing": "Full rain protection",
         }
     },
     "96": {
@@ -527,7 +527,7 @@ codes = {
             "lighting_description": "dramatic storm light with hail",
             "mood_description": "intense and damaging",
             "weather_effects": "small hail, thunder, lightning",
-            "clothing": "Helmet or hard hat recommended, thick layers for hail protection",
+            "clothing": "Helmet or hard hat, thick layers for hail protection",
         },
         "night": {
             "description": "Light Thunderstorms With Hail",
@@ -536,7 +536,7 @@ codes = {
             "lighting_description": "lightning flashes revealing hail",
             "mood_description": "dangerous night storm",
             "weather_effects": "hail impacts, thunder",
-            "clothing": "Stay indoors if possible, hard hat if outside",
+            "clothing": "Helmet or hard hat, thick layers for hail protection",
         }
     },
     "99": {
@@ -547,7 +547,7 @@ codes = {
             "lighting_description": "intense storm light with hail",
             "mood_description": "destructive and dangerous",
             "weather_effects": "large hail, frequent lightning",
-            "clothing": "Seek immediate shelter, avoid going outside",
+            "clothing": "rubber-soled shoes, raincoat",
         },
         "night": {
             "description": "Thunderstorm With Hail",
@@ -556,7 +556,7 @@ codes = {
             "lighting_description": "lightning flashes revealing large hail",
             "mood_description": "extremely hazardous",
             "weather_effects": "destructive hail, intense lightning",
-            "clothing": "Stay in sturdy shelter, avoid windows",
+            "clothing": "rubber-soled shoes, raincoat",
         }
     }
 }

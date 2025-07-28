@@ -1,5 +1,6 @@
 import logging
 import os
+from enum import Enum
 
 from dotenv import load_dotenv
 
@@ -9,6 +10,9 @@ from typing import Dict, Any
 
 SCHEDULE_FILE = Path("../schedule.json")
 logger = logging.getLogger(__name__)
+
+class Style(Enum):
+    SAI_PHOTOGRAPHIC = "sai-photographic"
 
 class Config:
 
@@ -20,6 +24,8 @@ class Config:
             'longitude': float,
             'allowed_chat_id': int,
             'weather': lambda x: json.loads(x),
+            'image_cfg_scale': float,
+            "style": lambda x: Style(x)
         }
 
         self._config_store = {}
@@ -116,3 +122,10 @@ class Config:
     def image_url(self):
         return self._get_variable("image_url", required=False)
 
+    @property
+    def image_cfg_scale(self):
+        return self._get_variable("image_cfg_scale", required=True)
+
+    @property
+    def style(self):
+        return self._get_variable("style", required=False)

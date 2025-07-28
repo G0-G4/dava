@@ -39,8 +39,7 @@ IMAGE_CONFIG = {
     "steps": 40,
     "width": 1024,
     "height": 1024,
-    "number_of_images": 1,
-    "image_cfg_scale": 0.5
+    "number_of_images": 1
 }
 class AvatarGenerator:
     def __init__(self, weather_descriptor: WeatherDescriptor, config: Config):
@@ -63,6 +62,8 @@ class AvatarGenerator:
                     "model": "SD-XL",
                     "prompt": prompt,
                     "negative_prompt": "",
+                    "image_cfg_scale": self._config.image_cfg_scale,
+                    "style": self._config.style.value if self._config.style else None,
                     **IMAGE_CONFIG,
                     "input_image": image_b64
                 }
