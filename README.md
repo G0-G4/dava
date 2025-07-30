@@ -9,6 +9,8 @@
 
 ## run
 
+telegram bot is for single user and processes requests only from allowed_chat_id
+
 - create .env file
 ```properties
 cookies=cookies to auth in https://stablediffusionweb.com/ru
@@ -20,10 +22,16 @@ api_hash=
 latitude=55.7522
 longitude=37.6156
 timezone=Europe/Moscow
+bot_token=
+allowed_chat_id=
+previous_prompt_text="will not update photo if promt hasn't changed"
+image_cfg_scale=0.6
+style=sai-photographic
 ```
 - create `logs` folder
 - create `images` folder
 - place base image into `images` called `avatar.jpg`
+- after start, you will be prompted to insert you phone to auth into tg with your account to allow photo change.
 
 ```bash
 uv run avatar_updater.py
