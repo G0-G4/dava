@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, get_type_hints
 
 SCHEDULE_FILE = Path("../schedule.json")
 logger = logging.getLogger(__name__)
@@ -19,14 +19,6 @@ class Config:
     def __init__(self):
         load_dotenv()
         self._hidden = {"bot_token", "api_id", "api_hash", "image_dir", "previous_prompt_text"}
-        self._converters = {
-            'latitude': float,
-            'longitude': float,
-            'allowed_chat_id': int,
-            'weather': lambda x: json.loads(x),
-            'image_cfg_scale': float,
-            "style": lambda x: Style(x)
-        }
 
         self._config_store = {}
         self.properties = [name for name, value in vars(Config).items() if isinstance(value, property)]
@@ -38,7 +30,28 @@ class Config:
             getattr(self, p)
 
     def _get_converter(self, name):
-        return self._converters.get(name, str)
+        # Get the property method
+        prop = getattr(type(self), name, None)
+        if prop and isinstance(prop, property):
+            try:
+                # Get return type annotation
+                hints = get_type_hints(prop.fget)
+                return_type = hints.get('return')
+                
+                # Map types to converters
+                type_map = {
+                    float: float,
+                    int: int,
+                    str: str,
+                    dict: json.loads,
+                    list: json.loads,
+                    Style: lambda x: Style(x)
+                }
+                return type_map.get(return_type, str)
+            except Exception:
+                # If we can't get type hints, default to str
+                return str
+        return str
 
     def __setitem__(self, key, value):
         if key in self.properties:
@@ -94,10 +107,10 @@ class Config:
     def api_hash(self):
         return self._get_variable("api_hash")
     @property
-    def latitude(self):
+    def latitude(self) -> float:
         return self._get_variable("latitude")
     @property
-    def longitude(self):
+    def longitude(self) -> float:
         return self._get_variable("longitude")
     @property
     def timezone(self):
@@ -107,7 +120,7 @@ class Config:
         return self._get_variable("place")
 
     @property
-    def allowed_chat_id(self):
+    def allowed_chat_id(self) -> int:
         return self._get_variable("allowed_chat_id")
 
     @property
@@ -115,7 +128,7 @@ class Config:
         return self._get_variable("previous_prompt_text")
 
     @property
-    def weather(self):
+    def weather(self) -> dict:
         return self._get_variable("weather", required=False)
 
     @property
@@ -123,9 +136,13 @@ class Config:
         return self._get_variable("image_url", required=False)
 
     @property
-    def image_cfg_scale(self):
+    def image_cfg_scale(self) -> float:
         return self._get_variable("image_cfg_scale", required=True)
 
     @property
-    def style(self):
+    def style(self) -> Style:
         return self._get_variable("style", required=False)
+
+    @property
+    def nano_banana_chat_id(self) -> int:
+        return self._get_variable("nano_banana_chat_id", required=True)
