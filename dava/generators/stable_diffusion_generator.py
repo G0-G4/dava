@@ -10,6 +10,7 @@ from pathlib import Path
 from PIL import Image
 from dava.config import Config
 from dava.errors import RequestError
+from dava.generators.image_generator import ImageGenerator
 from dava.weather_descriptor import WeatherDescriptor
 from dava.common import make_request
 
@@ -41,7 +42,7 @@ IMAGE_CONFIG = {
     "height": 1024,
     "number_of_images": 1
 }
-class AvatarGenerator:
+class StableDiffusionGenerator(ImageGenerator):
     def __init__(self, weather_descriptor: WeatherDescriptor, config: Config):
         self._config = config
         self.image_dir = Path(config.image_dir)

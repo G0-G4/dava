@@ -27,6 +27,7 @@ allowed_chat_id=
 previous_prompt_text="will not update photo if promt hasn't changed"
 image_cfg_scale=0.6
 style=sai-photographic
+nano_banana_chat_id=chat_id с @GPT4Telegrambot
 ```
 - create `logs` folder
 - create `images` folder

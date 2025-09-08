@@ -8,7 +8,6 @@ import telethon.tl.functions.bots
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava import AvatarUpdater
-from dava.avatar_generator import AvatarGenerator
 from dava.config import Config
 from dava.logs import get_recent_logs
 from dava.weather_descriptor import WeatherDescriptor
@@ -16,10 +15,9 @@ from dava.weather_descriptor import WeatherDescriptor
 logger = logging.getLogger(__name__)
 
 class BotController:
-    def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, avatar_generator: AvatarGenerator, config: Config):
+    def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, config: Config):
         self.updater = updater
         self.weather_descriptor = weather_descriptor
-        self.avatar_generator = avatar_generator
         self.client = TelegramClient("bot_session", config.api_id, config.api_hash)
         self.scheduler = AsyncIOScheduler()
         self._config = config
