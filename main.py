@@ -16,8 +16,7 @@ if __name__ == "__main__":
         config = Config()
         weather_descriptor = WeatherDescriptor(config)
         #generator = StableDiffusionGenerator(weather_descriptor, config)
-        generator = NanoBana(config)
-        updater = AvatarUpdater(generator, config)
+        updater = AvatarUpdater(config)
         bot = BotController(updater, weather_descriptor, config)
         # Start bot
         await bot.start()

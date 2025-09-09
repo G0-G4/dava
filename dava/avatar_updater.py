@@ -5,18 +5,18 @@ from telethon.tl.functions.photos import UploadProfilePhotoRequest, DeletePhotos
 from telethon.tl.types import InputPhoto
 
 from dava.config import Config
-from dava.generators.image_generator import ImageGenerator
+from dava.generators import get_image_generator
 
 logger = logging.getLogger(__name__)
 
 
 class AvatarUpdater:
-    def __init__(self, avatar_generator: ImageGenerator, config: Config):
-        self.avatar_generator = avatar_generator
+    def __init__(self, config: Config):
+        self.config = config
         self.client = TelegramClient("user_session", config.api_id, config.api_hash)
 
     async def async_update_avatar(self, prompt: str):
-        img = await self.avatar_generator.generate_and_save_image(prompt)
+        img = await get_image_generator(self.config).generate_and_save_image(prompt)
         async with self.client:
             logger.debug("deleting avatar")
             await self._delete_avatar()

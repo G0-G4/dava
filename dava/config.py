@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 class Style(Enum):
     SAI_PHOTOGRAPHIC = "sai-photographic"
 
+class ImageGenerators(Enum):
+    STABLE_DIFFUSION = 'stable-diffusion'
+    NANO_BANANA = 'nano-banana'
+
 class Config:
 
     def __init__(self):
@@ -45,7 +49,8 @@ class Config:
                     str: str,
                     dict: json.loads,
                     list: json.loads,
-                    Style: lambda x: Style(x)
+                    Style: lambda x: Style(x),
+                    ImageGenerators: lambda x: ImageGenerators(x)
                 }
                 return type_map.get(return_type, str)
             except Exception:
@@ -146,3 +151,7 @@ class Config:
     @property
     def nano_banana_chat_id(self) -> int:
         return self._get_variable("nano_banana_chat_id", required=True)
+
+    @property
+    def image_generator(self) -> ImageGenerators:
+        return self._get_variable("image_generator", required=False)

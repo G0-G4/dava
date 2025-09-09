@@ -11,7 +11,6 @@ from PIL import Image
 from dava.config import Config
 from dava.errors import RequestError
 from dava.generators.image_generator import ImageGenerator
-from dava.weather_descriptor import WeatherDescriptor
 from dava.common import make_request
 
 logger = logging.getLogger(__name__)
@@ -43,10 +42,9 @@ IMAGE_CONFIG = {
     "number_of_images": 1
 }
 class StableDiffusionGenerator(ImageGenerator):
-    def __init__(self, weather_descriptor: WeatherDescriptor, config: Config):
+    def __init__(self, config: Config):
         self._config = config
         self.image_dir = Path(config.image_dir)
-        self.weather_descriptor = weather_descriptor
 
     def _get_and_encode_image(self) -> str:
         image_path = self.image_dir/ 'avatar.jpg'
