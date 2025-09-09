@@ -9,6 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava import AvatarUpdater
 from dava.config import Config
+from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
 from dava.weather_descriptor import WeatherDescriptor
 
@@ -26,6 +27,7 @@ class BotController:
         self._setup_handlers()
         self._load_and_start_schedule()
         self._is_job_running = False
+        self.holiday_checker = HolidayChecker(config)
 
     async def start(self):
         await self.client.start(bot_token=self._config.bot_token)
@@ -277,6 +279,10 @@ class BotController:
         weather = await self.weather_descriptor.get_forecast()
         prompt = self._config.prompt_text
         weather = {**weather, "place": self._config.place}
+        holiday = self.holiday_checker.get_today_holiday()
+        if holiday:
+            weather["clothing"] = "clothing suitable for celebrating " + holiday
+            weather["environmental_details"] = "everything is prepared for celebrating " + holiday
         for key, val in weather.items():
             prompt = prompt.replace('{'+key+'}', val)
         logger.info(f"Prepared prompt: {prompt}")

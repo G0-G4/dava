@@ -155,3 +155,7 @@ class Config:
     @property
     def image_generator(self) -> ImageGenerators:
         return self._get_variable("image_generator", required=False)
+
+    @property
+    def holidays(self) -> dict:
+        return self._get_variable("holidays", required=False)

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 class NanoBana(ImageGenerator):
     def __init__(self, config: Config):
         self.prompt = None
+        self.error = None
         self.config = config
         self.client = TelegramClient("user_session", config.api_id, config.api_hash)
         self.avatar_path = str((Path(config.image_dir) / "avatar.jpg").absolute())
@@ -20,6 +21,7 @@ class NanoBana(ImageGenerator):
 
     async def generate_and_save_image(self, prompt: str) -> str:
         self.prompt = prompt
+        self.error = None
         await self._send_start_message()
         await self.client.start()
         try:
@@ -27,6 +29,8 @@ class NanoBana(ImageGenerator):
         except asyncio.TimeoutError:
             await self.client.disconnect()
             raise Exception("Avatar not updated due to timeout")
+        if self.error:
+            raise Exception(self.error)
         return str(self.save_path)
 
     async def _send_start_message(self):
@@ -52,6 +56,11 @@ class NanoBana(ImageGenerator):
             ru = "Изображение без сжатия"
             return text in event.message.text or ru in event.message.text
 
+        def check_buy_pro(event):
+            text = "Чтобы дальше пользоваться ботом бесплатно, подпишитесь на каналы:"
+            ru = "You’ve sent 5 free requests to the bot this week"
+            return text in event.message.text or ru in event.message.text
+
         @self.client.on(events.NewMessage(chats=self.config.nano_banana_chat_id, func=check_generator_selector))
         async def process_message(event):
             logger.info("selecting nano banana")
@@ -73,4 +82,10 @@ class NanoBana(ImageGenerator):
             await asyncio.sleep(1)
             await event.message.download_media(file=self.save_path)
             logger.info("image successfully created!")
+            self.client.disconnect()
+
+        @self.client.on(events.NewMessage(chats=self.config.nano_banana_chat_id, func=check_buy_pro))
+        async def process_message(event):
+            logger.info("no mo credits left")
+            self.error = "no mo credits left"
             self.client.disconnect()
