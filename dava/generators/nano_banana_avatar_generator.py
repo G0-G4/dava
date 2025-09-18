@@ -89,3 +89,13 @@ class NanoBana(ImageGenerator):
             logger.info("no mo credits left")
             self.error = "no mo credits left"
             self.client.disconnect()
+
+
+if __name__ == '__main__':
+    config = Config()
+    client = TelegramClient("user_session", config.api_id, config.api_hash)
+    @client.on(events.NewMessage())
+    async def process_message(event):
+        print(f"got message {event.message.text} from {event.chat_id}")
+    client.start()
+    client.run_until_disconnected()

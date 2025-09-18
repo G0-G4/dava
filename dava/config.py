@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, get_type_hints
 
-SCHEDULE_FILE = Path("../schedule.json")
+SCHEDULE_FILE = Path("../schedule.json") # TODO move to ./schedule.json
 logger = logging.getLogger(__name__)
 
 class Style(Enum):
