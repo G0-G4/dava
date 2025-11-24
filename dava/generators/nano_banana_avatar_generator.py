@@ -41,7 +41,7 @@ class NanoBana(ImageGenerator):
 
     def _setup_handlers(self):
         def check_generator_selector(event):
-            text = "🍌 Gemini Images"
+            text = "🍌 Nano Banana"
             return (event.message.reply_markup is not None and event.message.reply_markup.rows is not None and len(event.message.reply_markup.rows) > 0 and
                     len(event.message.reply_markup.rows[0].buttons) > 1 and text in event.message.reply_markup.rows[0].buttons[1].text
             )
@@ -96,6 +96,7 @@ if __name__ == '__main__':
     client = TelegramClient("user_session", config.api_id, config.api_hash)
     @client.on(events.NewMessage())
     async def process_message(event):
+        print(event)
         print(f"got message {event.message.text} from {event.chat_id}")
     client.start()
     client.run_until_disconnected()
