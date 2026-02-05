@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Any
+from datetime import datetime
 
 from dava.weather_codes import codes as weather_codes
 from dava.common import make_request
@@ -31,7 +32,18 @@ class WeatherDescriptor:
         weather_code = str(response['current']['weather_code'])
         logger.info(response)
 
+        # Determine current season based on month
+        month = datetime.now().month
+        if month in [12, 1, 2]:
+            season = 'winter'
+        elif month in [3, 4, 5]:
+            season = 'spring'
+        elif month in [6, 7, 8]:
+            season = 'summer'
+        else:  # 9, 10, 11
+            season = 'autumn'
+
         if weather_code not in weather_codes:
             logger.warning(f"Unknown weather code: {weather_code}")
             weather_code = '2'  # default to Partly Cloudy
-        return weather_codes[weather_code][day]
+        return weather_codes[weather_code][season][day]
