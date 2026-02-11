@@ -281,8 +281,8 @@ class BotController:
         weather = {**weather, "place": self._config.place}
         holiday = self.holiday_checker.get_today_holiday()
         if holiday:
-            weather["clothing"] = "clothing suitable for celebrating " + holiday
-            weather["environmental_details"] = "everything is prepared for celebrating " + holiday
+            weather["clothing"] = self.holiday_checker.get_clothing()
+            weather["environmental_details"] = self.holiday_checker.get_details()
         for key, val in weather.items():
             prompt = prompt.replace('{'+key+'}', val)
         logger.info(f"Prepared prompt: {prompt}")
