@@ -22,7 +22,7 @@ class HolidayChecker:
     def get_clothing(self):
         holiday = self.get_today_holiday()
         if holiday == FRIDAY:
-            "jason costume with mask and machete"
+            return "jason costume with mask and machete"
         return "clothing suitable for celebrating " + self.get_today_holiday()
 
     def get_details(self):
