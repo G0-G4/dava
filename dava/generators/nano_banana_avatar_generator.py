@@ -41,7 +41,7 @@ class NanoBana(ImageGenerator):
 
     def _setup_handlers(self):
         def check_generator_selector(event):
-            text = "🍌 Nano Banana"
+            text = "Nano Banana"
             return (event.message.reply_markup is not None and event.message.reply_markup.rows is not None and len(event.message.reply_markup.rows) > 0 and
                     len(event.message.reply_markup.rows[0].buttons) > 1 and text in event.message.reply_markup.rows[0].buttons[1].text
             )
