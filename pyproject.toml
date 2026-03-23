@@ -10,6 +10,7 @@ dependencies = [
     "apscheduler>=3.11.0",
     "grequests>=0.7.0",
     "pillow>=11.3.0",
+    "pysocks>=1.7.1",
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "telethon>=1.40.0",

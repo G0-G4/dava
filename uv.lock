@@ -1,6 +1,10 @@
 version = 1
 revision = 2
 requires-python = ">=3.13"
+resolution-markers = [
+    "python_full_version >= '3.14'",
+    "python_full_version < '3.14'",
+]
 
 [[package]]
 name = "aiofiles"
@@ -153,6 +157,7 @@ dependencies = [
     { name = "apscheduler" },
     { name = "grequests" },
     { name = "pillow" },
+    { name = "pysocks" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "telethon" },
@@ -166,6 +171,7 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.0" },
     { name = "grequests", specifier = ">=0.7.0" },
     { name = "pillow", specifier = ">=11.3.0" },
+    { name = "pysocks", specifier = ">=1.7.1" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "telethon", specifier = ">=1.40.0" },
@@ -472,6 +478,15 @@ name = "pymeeus"
 version = "0.5.12"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/81/76/599896b37e60f43078afd8354b3802eb7ca257a7e7f6253cc21c4c672877/PyMeeus-0.5.12.tar.gz", hash = "sha256:548f7186bd8b96cbc069cf649a8e8e377dce49ac74486709849fe63a99cad684", size = 5752712, upload-time = "2022-12-11T11:37:48.504Z" }
+
+[[package]]
+name = "pysocks"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0", size = 284429, upload-time = "2019-09-20T02:07:35.714Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5", size = 16725, upload-time = "2019-09-20T02:06:22.938Z" },
+]
 
 [[package]]
 name = "python-dateutil"

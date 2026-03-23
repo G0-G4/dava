@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 from datetime import datetime
+from urllib.parse import urlparse
 
 from telethon import TelegramClient, events
 import telethon.tl.types
@@ -15,11 +17,65 @@ from dava.weather_descriptor import WeatherDescriptor
 
 logger = logging.getLogger(__name__)
 
+def parse_proxy_url(proxy_url) -> dict:
+    """
+    Parse proxy URL string into Telethon proxy dictionary format.
+
+    Supported formats:
+    - socks5://user:pass@host:port
+    - socks5://host:port
+    - http://user:pass@host:port
+    - http://host:port
+
+    Args:
+        proxy_url (str): Proxy URL string
+
+    Returns:
+        dict: Proxy configuration dictionary for Telethon
+    """
+    parsed = urlparse(proxy_url)
+
+    # Determine proxy type
+    proxy_type = parsed.scheme.lower()
+    if proxy_type == 'socks5':
+        proxy_type = 'socks5'
+    elif proxy_type == 'socks4':
+        proxy_type = 'socks4'
+    elif proxy_type == 'http':
+        proxy_type = 'http'
+    else:
+        raise ValueError(f"Unsupported proxy type: {proxy_type}")
+
+    # Extract components
+    host = parsed.hostname
+    port = parsed.port
+
+    # Handle authentication
+    username = parsed.username
+    password = parsed.password
+
+    # Build the proxy dictionary
+    proxy_dict = {
+        'proxy_type': proxy_type,
+        'addr': host,
+        'port': port,
+    }
+
+    # Add authentication if present
+    if username:
+        proxy_dict['username'] = username
+    if password:
+        proxy_dict['password'] = password
+
+    return proxy_dict
+
 class BotController:
     def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, config: Config):
         self.updater = updater
         self.weather_descriptor = weather_descriptor
         self.client = TelegramClient("bot_session", config.api_id, config.api_hash)
+        if PROXY := os.getenv("PROXY"):
+            self.client.set_proxy(parse_proxy_url(PROXY))
         self.scheduler = AsyncIOScheduler()
         self._config = config
         self._pending_var = None
