@@ -37,7 +37,22 @@ class NanoBana(ImageGenerator):
         async with self.client:
             logger.info("sending /photo request")
             await asyncio.sleep(1)
-            await self.client.send_message(self.config.nano_banana_chat_id, "/photo")
+            chat_entity = await self._resolve_chat_entity()
+            await self.client.send_message(chat_entity, "/photo")
+
+    async def _resolve_chat_entity(self):
+        target = self.config.nano_banana_chat_id
+        try:
+            return await self.client.get_input_entity(target)
+        except ValueError:
+            logger.info("chat entity is not cached, loading dialogs")
+            await self.client.get_dialogs(limit=200)
+            try:
+                return await self.client.get_input_entity(target)
+            except ValueError as e:
+                raise ValueError(
+                    "Could not resolve nano_banana_chat_id. Open the chat manually from the same Telegram account once, then retry."
+                ) from e
 
     def _setup_handlers(self):
         def check_generator_selector(event):
