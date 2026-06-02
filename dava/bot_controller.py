@@ -10,12 +10,11 @@ from telethon.tl.types import BotCommand, BotCommandScopeDefault, KeyboardButton
 from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from dava.auth import AuthManager
 from dava.avatar_updater import AvatarUpdater
 from dava.config import Config
+from dava.db import Database
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
-from dava.user_store import UserStore
 from dava.weather_descriptor import WeatherDescriptor
 
 logger = logging.getLogger(__name__)
@@ -45,11 +44,10 @@ def parse_proxy_url(proxy_url) -> dict:
 
 
 class BotController:
-    def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, config: Config, auth: AuthManager, users: UserStore):
+    def __init__(self, updater: AvatarUpdater, weather_descriptor: WeatherDescriptor, config: Config, db: Database):
         self.updater = updater
         self.weather_descriptor = weather_descriptor
-        self.auth = auth
-        self.users = users
+        self.db = db
         self.client = TelegramClient("bot_session", config.api_id, config.api_hash)
         if PROXY := os.getenv("PROXY"):
             self.client.set_proxy(parse_proxy_url(PROXY))
@@ -68,17 +66,17 @@ class BotController:
         await self.client.run_until_disconnected()
 
     async def _check_admin(self, event):
-        if not self.auth.is_admin(event.chat_id):
+        if not self.db.is_admin(event.chat_id):
             await event.respond("⛔ This command is for admins only.")
             raise RuntimeError(f"Non-admin user {event.chat_id} tried admin command")
 
     async def _check_allowed(self, event):
-        if not self.auth.is_allowed(event.chat_id):
+        if not self.db.is_allowed(event.chat_id):
             await event.respond("⛔ Access not granted. Please contact the admin to get access.")
             raise RuntimeError(f"Unauthorized user {event.chat_id} tried to use bot")
 
     def _get_effective_value(self, user_id: int, key: str):
-        return self.users.get_effective_value(user_id, key, getattr(self._config, key, None))
+        return self.db.get_effective_value(user_id, key, getattr(self._config, key, None))
 
     def _setup_handlers(self):
         @self.client.on(events.Raw(types=tl_types.UpdateBotBusinessConnect))
@@ -94,7 +92,7 @@ class BotController:
                 }
 
             user_id = connection.user_id
-            self.users.save_connection(
+            self.db.save_connection(
                 user_id=user_id,
                 connection_id=connection.connection_id,
                 tg_user_id=connection.user_id,
@@ -102,7 +100,7 @@ class BotController:
             )
             logger.info(f"Business connection established: {connection.connection_id} (user_id={user_id})")
 
-            if self.auth.is_allowed(user_id):
+            if self.db.is_allowed(user_id):
                 has_photo_right = rights and rights.get("edit_profile_photo")
                 status = "with" if has_photo_right else "without"
                 await self.client.send_message(
@@ -115,8 +113,8 @@ class BotController:
                     "Your business connection has been received, but access has not been granted yet. "
                     "Please wait for the admin to approve your access.",
                 )
-                for admin_id in self.auth.list_allowed():
-                    if self.auth.is_admin(admin_id):
+                for admin_id in self.db.list_allowed():
+                    if self.db.is_admin(admin_id):
                         await self.client.send_message(
                             admin_id,
                             f"New business connection request from user {user_id}. "
@@ -133,14 +131,14 @@ class BotController:
                 await event.respond(f"Please send the new value for {var_name}")
             elif event.data.startswith(b"deletevar-"):
                 var_name = event.data.decode().split("-")[1]
-                self.users.delete_user_config_key(user_id, var_name)
+                self.db.delete_user_config_key(user_id, var_name)
                 await event.respond(f"✅ {var_name} has been deleted")
             elif event.data.startswith(b"deletetime-"):
                 time_str = event.data.decode().split("-")[1]
-                schedule = self.users.load_schedule(user_id)
+                schedule = self.db.load_schedule(user_id)
                 if time_str in schedule:
                     schedule.remove(time_str)
-                    self.users.save_schedule(user_id, schedule)
+                    self.db.save_schedule(user_id, schedule)
                     self._restart_scheduler(user_id)
                     await event.respond(f"⏰ Removed {time_str} from schedule")
                 else:
@@ -149,13 +147,13 @@ class BotController:
         @self.client.on(events.NewMessage())
         async def handle_value_input(event):
             user_id = event.chat_id
-            if not self.auth.is_allowed(user_id):
+            if not self.db.is_allowed(user_id):
                 return
             try:
                 if user_id in self._pending_var and not event.text.startswith("/"):
                     var_name = self._pending_var.pop(user_id)
                     new_value = event.text
-                    self.users.save_user_config(user_id, var_name, new_value)
+                    self.db.save_user_config(user_id, var_name, new_value)
                     await event.respond(f"✅ {var_name} set to {new_value}")
                 elif user_id in self._pending_time and not event.text.startswith("/"):
                     self._pending_time.discard(user_id)
@@ -164,10 +162,10 @@ class BotController:
                         await event.respond("❌ Invalid time format. Use HH:MM")
                         return
 
-                    schedule = self.users.load_schedule(user_id)
+                    schedule = self.db.load_schedule(user_id)
                     if time_str not in schedule:
                         schedule.append(time_str)
-                        self.users.save_schedule(user_id, schedule)
+                        self.db.save_schedule(user_id, schedule)
                         self._restart_scheduler(user_id)
                         await event.respond(f"⏰ Added {time_str} to schedule")
                     else:
@@ -192,7 +190,7 @@ class BotController:
         async def show_settings(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            user_config = self.users.load_user_config(user_id)
+            user_config = self.db.load_user_config(user_id)
             global_vars = self._config.all_variables()
             lines = []
             for k, v in global_vars.items():
@@ -216,10 +214,10 @@ class BotController:
             parts = event.text.split()
             if len(parts) == 3:
                 _, name, val = parts
-                self.users.save_user_config(user_id, name, val)
+                self.db.save_user_config(user_id, name, val)
                 await event.respond(f"✅ {name} set to {val}")
             else:
-                user_config = self.users.load_user_config(user_id)
+                user_config = self.db.load_user_config(user_id)
                 global_vars = self._config.all_variables()
                 all_keys = list(global_vars.keys()) + [k for k in user_config if k not in global_vars and k != "schedule"]
                 buttons = []
@@ -251,7 +249,7 @@ class BotController:
         async def show_schedule(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            schedule = self.users.load_schedule(user_id)
+            schedule = self.db.load_schedule(user_id)
             if not schedule:
                 await event.respond("No scheduled times set")
                 return
@@ -270,7 +268,7 @@ class BotController:
             await self._check_allowed(event)
             user_id = event.chat_id
             try:
-                schedule = self.users.load_schedule(user_id)
+                schedule = self.db.load_schedule(user_id)
                 if not schedule:
                     await event.respond("No scheduled times to remove")
                     return
@@ -292,7 +290,7 @@ class BotController:
         async def delete_variable(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            user_config = self.users.load_user_config(user_id)
+            user_config = self.db.load_user_config(user_id)
             variables = [k for k in user_config if k != "schedule"]
             if not variables:
                 await event.respond("No user variables to delete")
@@ -336,7 +334,7 @@ class BotController:
         async def show_connection(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            connection = self.users.load_connection(user_id)
+            connection = self.db.load_connection(user_id)
             if connection:
                 await event.respond(f"Business connection active:\nConnection ID: {connection['connection_id']}\nUser ID: {connection['user_id']}")
             else:
@@ -354,7 +352,7 @@ class BotController:
             except ValueError:
                 await event.respond("❌ Invalid user ID")
                 return
-            self.auth.grant(user_id)
+            self.db.grant(user_id)
             self._restore_user_schedule(user_id)
             await event.respond(f"✅ Granted access to user {user_id}")
             try:
@@ -374,7 +372,7 @@ class BotController:
             except ValueError:
                 await event.respond("❌ Invalid user ID")
                 return
-            self.auth.revoke(user_id)
+            self.db.revoke(user_id)
             self._remove_user_schedule(user_id)
             await event.respond(f"✅ Revoked access from user {user_id}")
             try:
@@ -385,15 +383,15 @@ class BotController:
         @self.client.on(events.NewMessage(pattern="/list_users"))
         async def list_users(event):
             await self._check_admin(event)
-            allowed = self.auth.list_allowed()
+            allowed = self.db.list_allowed()
             if not allowed:
                 await event.respond("No users with access.")
                 return
             lines = []
             for uid in allowed:
-                has_conn = "✅" if self.users.load_connection(uid) else "❌"
-                has_img = "✅" if self.users.has_base_image(uid) else "❌"
-                is_admin = " 👑" if self.auth.is_admin(uid) else ""
+                has_conn = "✅" if self.db.load_connection(uid) else "❌"
+                has_img = "✅" if self.db.has_base_image(uid) else "❌"
+                is_admin = " 👑" if self.db.is_admin(uid) else ""
                 lines.append(f"• {uid}{is_admin} | Connection: {has_conn} | Image: {has_img}")
             await event.respond("Users with access:\n" + "\n".join(lines))
 
@@ -405,7 +403,7 @@ class BotController:
             from io import BytesIO
             buf = BytesIO()
             await event.download_media(file=buf)
-            await self.users.save_base_image_bytes(user_id, buf.getvalue())
+            await self.db.save_base_image_bytes(user_id, buf.getvalue())
             await event.respond("✅ Base image uploaded successfully!")
         except Exception as e:
             logger.exception(f"Failed to save base image for user {user_id}")
@@ -476,13 +474,13 @@ class BotController:
             return False
 
     async def _update_avatar(self, user_id: int) -> str:
-        if not self.auth.is_allowed(user_id):
+        if not self.db.is_allowed(user_id):
             logger.warning(f"Skipping scheduled update for {user_id}: access not granted")
             return "Access not granted"
-        if not self.users.load_connection(user_id):
+        if not self.db.load_connection(user_id):
             logger.warning(f"Skipping scheduled update for {user_id}: no business connection")
             return "No business connection"
-        if not self.users.has_base_image(user_id):
+        if not self.db.has_base_image(user_id):
             logger.warning(f"Skipping scheduled update for {user_id}: no base image")
             return "No base image uploaded. Use /upload to send one."
         if user_id in self._running_jobs:
@@ -497,7 +495,7 @@ class BotController:
         try:
             self._running_jobs.add(user_id)
             await self.updater.async_update_avatar(prompt, user_id)
-            self.users.save_user_config(user_id, "previous_prompt_text", prompt)
+            self.db.save_user_config(user_id, "previous_prompt_text", prompt)
             logger.info(f"User {user_id}: Avatar updated!")
             return "✅ Avatar updated!"
         except Exception as e:
@@ -534,7 +532,7 @@ class BotController:
         return prompt
 
     def _restore_user_schedule(self, user_id: int):
-        schedule = self.users.load_schedule(user_id)
+        schedule = self.db.load_schedule(user_id)
         for job in self.scheduler.get_jobs():
             if job.id.startswith(f"avatar_{user_id}_"):
                 self.scheduler.remove_job(job.id)
@@ -559,7 +557,7 @@ class BotController:
                 self.scheduler.remove_job(job.id)
 
     def restore_all_schedules(self):
-        for user_id in self.auth.list_allowed():
+        for user_id in self.db.list_allowed():
             self._restore_user_schedule(user_id)
 
     def _restart_scheduler(self, user_id: int):

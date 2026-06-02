@@ -3,4 +3,3 @@
 *.session
 connection.json
 data/
-allowed_users.json

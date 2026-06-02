@@ -6,20 +6,20 @@ from telethon.tl.functions.photos import UploadProfilePhotoRequest
 from telethon.tl.types import InputUser
 
 from dava.config import Config
+from dava.db import Database
 from dava.generators import get_image_generator
-from dava.user_store import UserStore
 
 logger = logging.getLogger(__name__)
 
 
 class AvatarUpdater:
-    def __init__(self, config: Config, users: UserStore):
+    def __init__(self, config: Config, db: Database):
         self.config = config
-        self.users = users
+        self.db = db
         self.client: TelegramClient | None = None
 
     async def async_update_avatar(self, prompt: str, user_id: int):
-        connection = self.users.load_connection(user_id)
+        connection = self.db.load_connection(user_id)
         if not connection:
             raise RuntimeError(
                 "No business connection found. "
@@ -29,7 +29,7 @@ class AvatarUpdater:
         if not self.client:
             raise RuntimeError("Bot client not initialized")
 
-        if not self.users.has_base_image(user_id):
+        if not self.db.has_base_image(user_id):
             raise RuntimeError(
                 "No base image found. Use /upload to send your base image first."
             )
@@ -37,8 +37,10 @@ class AvatarUpdater:
         connection_id = connection["connection_id"]
         tg_user_id = connection["user_id"]
 
-        base_image_path = self.users.get_base_image_path(user_id)
-        img = await get_image_generator(self.config).generate_and_save_image(prompt, str(base_image_path))
+        base_image_path = self.db.get_base_image_path(user_id)
+        if not base_image_path:
+            raise RuntimeError("Base image path not found in database.")
+        img = await get_image_generator(self.config).generate_and_save_image(prompt, base_image_path)
 
         logger.debug("deleting old avatar via Bot API")
         await self._delete_avatar(connection_id)
