@@ -14,7 +14,7 @@ if __name__ == "__main__":
         weather_descriptor = WeatherDescriptor(config)
         updater = AvatarUpdater(config)
         bot = BotController(updater, weather_descriptor, config)
-        # Start bot
+        updater.client = bot.client
         await bot.start()
 
     try:

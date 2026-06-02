@@ -8,15 +8,18 @@ import json
 from pathlib import Path
 from typing import Dict, Any, get_type_hints
 
-SCHEDULE_FILE = Path("../schedule.json") # TODO move to ./schedule.json
+SCHEDULE_FILE = Path("../schedule.json")
+CONNECTION_FILE = Path("connection.json")
 logger = logging.getLogger(__name__)
+
 
 class Style(Enum):
     SAI_PHOTOGRAPHIC = "sai-photographic"
 
+
 class ImageGenerators(Enum):
-    STABLE_DIFFUSION = 'stable-diffusion'
-    NANO_BANANA = 'nano-banana'
+    STABLE_DIFFUSION = "stable-diffusion"
+
 
 class Config:
 
@@ -29,20 +32,16 @@ class Config:
         self.init_config()
 
     def init_config(self):
-        # load all properties in memory
         for p in self.properties:
             getattr(self, p)
 
     def _get_converter(self, name):
-        # Get the property method
         prop = getattr(type(self), name, None)
         if prop and isinstance(prop, property):
             try:
-                # Get return type annotation
                 hints = get_type_hints(prop.fget)
-                return_type = hints.get('return')
-                
-                # Map types to converters
+                return_type = hints.get("return")
+
                 type_map = {
                     float: float,
                     int: int,
@@ -50,11 +49,10 @@ class Config:
                     dict: json.loads,
                     list: json.loads,
                     Style: lambda x: Style(x),
-                    ImageGenerators: lambda x: ImageGenerators(x)
+                    ImageGenerators: lambda x: ImageGenerators(x),
                 }
                 return type_map.get(return_type, str)
             except Exception:
-                # If we can't get type hints, default to str
                 return str
         return str
 
@@ -64,12 +62,11 @@ class Config:
             return
         self._config_store[key] = value
 
-
     def __delitem__(self, key):
         if key in self._config_store:
             del self._config_store[key]
             if key in self.properties:
-                getattr(self, key) # load default from env
+                getattr(self, key)
 
     def _get_variable(self, name: str, required=True) -> Any:
         env_variable = os.getenv(name)
@@ -93,33 +90,54 @@ class Config:
         except (FileNotFoundError, json.JSONDecodeError):
             return []
 
+    def save_connection(self, connection_id: str, user_id: int, rights: dict | None = None) -> None:
+        data = {"connection_id": connection_id, "user_id": user_id}
+        if rights:
+            data["rights"] = rights
+        CONNECTION_FILE.write_text(json.dumps(data))
+
+    def load_connection(self) -> dict | None:
+        try:
+            return json.loads(CONNECTION_FILE.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return None
+
     @property
     def bot_token(self):
         return self._get_variable("bot_token")
+
     @property
     def prompt_text(self):
         return self._get_variable("prompt_text")
+
     @property
     def image_dir(self):
         return self._get_variable("image_dir")
+
     @property
     def cookies(self):
         return self._get_variable("cookies")
+
     @property
     def api_id(self):
         return self._get_variable("api_id")
+
     @property
     def api_hash(self):
         return self._get_variable("api_hash")
+
     @property
     def latitude(self) -> float:
         return self._get_variable("latitude")
+
     @property
     def longitude(self) -> float:
         return self._get_variable("longitude")
+
     @property
     def timezone(self):
         return self._get_variable("timezone")
+
     @property
     def place(self):
         return self._get_variable("place")
@@ -147,10 +165,6 @@ class Config:
     @property
     def style(self) -> Style:
         return self._get_variable("style", required=False)
-
-    @property
-    def nano_banana_chat_id(self) -> int:
-        return self._get_variable("nano_banana_chat_id", required=True)
 
     @property
     def image_generator(self) -> ImageGenerators:
