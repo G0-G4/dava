@@ -5,11 +5,8 @@ from enum import Enum
 from dotenv import load_dotenv
 
 import json
-from pathlib import Path
 from typing import Dict, Any, get_type_hints
 
-SCHEDULE_FILE = Path("../schedule.json")
-CONNECTION_FILE = Path("connection.json")
 logger = logging.getLogger(__name__)
 
 
@@ -27,8 +24,7 @@ class Config:
 
     def __init__(self):
         load_dotenv()
-        self._hidden = {"bot_token", "api_id", "api_hash", "image_dir", "previous_prompt_text", "polza_api_key"}
-
+        self._hidden = {"bot_token", "api_id", "api_hash", "polza_api_key"}
         self._config_store = {}
         self.properties = [name for name, value in vars(Config).items() if isinstance(value, property)]
         self.init_config()
@@ -83,27 +79,6 @@ class Config:
     def all_variables(self) -> Dict[str, Any]:
         return {k: v for k, v in self._config_store.items() if k not in self._hidden}
 
-    def save_schedule(self, times: list) -> None:
-        SCHEDULE_FILE.write_text(json.dumps({"schedule": times}))
-
-    def load_schedule(self) -> list:
-        try:
-            return json.loads(SCHEDULE_FILE.read_text()).get("schedule", [])
-        except (FileNotFoundError, json.JSONDecodeError):
-            return []
-
-    def save_connection(self, connection_id: str, user_id: int, rights: dict | None = None) -> None:
-        data = {"connection_id": connection_id, "user_id": user_id}
-        if rights:
-            data["rights"] = rights
-        CONNECTION_FILE.write_text(json.dumps(data))
-
-    def load_connection(self) -> dict | None:
-        try:
-            return json.loads(CONNECTION_FILE.read_text())
-        except (FileNotFoundError, json.JSONDecodeError):
-            return None
-
     @property
     def bot_token(self):
         return self._get_variable("bot_token")
@@ -115,6 +90,10 @@ class Config:
     @property
     def image_dir(self):
         return self._get_variable("image_dir")
+
+    @property
+    def data_dir(self):
+        return self._get_variable("data_dir", required=False) or "data"
 
     @property
     def cookies(self):
@@ -145,12 +124,15 @@ class Config:
         return self._get_variable("place")
 
     @property
-    def allowed_chat_id(self) -> int:
-        return self._get_variable("allowed_chat_id")
+    def admin_chat_ids(self) -> list[int]:
+        raw = self._get_variable("admin_chat_ids", required=False)
+        if not raw:
+            return []
+        return [int(x.strip()) for x in str(raw).split(",") if x.strip()]
 
     @property
     def previous_prompt_text(self):
-        return self._get_variable("previous_prompt_text")
+        return self._get_variable("previous_prompt_text", required=False)
 
     @property
     def weather(self) -> dict:

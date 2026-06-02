@@ -16,7 +16,6 @@ from dava.common import make_request
 logger = logging.getLogger(__name__)
 
 
-
 HEADERS_TEMPLATE = {
     'accept': '*/*',
     'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -26,7 +25,7 @@ HEADERS_TEMPLATE = {
     'pragma': 'no-cache',
     'priority': 'u=1, i',
     'referer': 'https://stablediffusionweb.com/ru/app/image-to-image',
-    'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
+    'sec-ch-ua': '"Not)A;Brand";v="8", "Google Chrome";v="138"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"macOS"',
     'sec-fetch-dest': 'empty',
@@ -41,13 +40,13 @@ IMAGE_CONFIG = {
     "height": 1024,
     "number_of_images": 1
 }
+
 class StableDiffusionGenerator(ImageGenerator):
     def __init__(self, config: Config):
         self._config = config
-        self.image_dir = Path(config.image_dir)
 
-    def _get_and_encode_image(self) -> str:
-        image_path = self.image_dir/ 'avatar.jpg'
+    def _get_and_encode_image(self, base_image_path: str) -> str:
+        image_path = Path(base_image_path)
         logger.debug(f"Reading and encoding image from {image_path}")
         with open(image_path, 'rb') as image:
             image_b64 = base64.b64encode(image.read()).decode()
@@ -85,12 +84,12 @@ class StableDiffusionGenerator(ImageGenerator):
         logger.debug(f"Task {uuid} status: {status}")
         return response
 
-    async def _get_image_url(self, prompt:str) -> str:
-        image = self._get_and_encode_image()
+    async def _get_image_url(self, prompt: str, base_image_path: str) -> str:
+        image = self._get_and_encode_image(base_image_path)
         task_response = await self._create_task(image, prompt)
         uuid = task_response[0]['result']['data']['json'][0]['uuid']
 
-        for _ in range(60):  # 1 minute timeout
+        for _ in range(60):
             response = await self._check_status(uuid)
             status = response[0]['result']['data']['json'][0]['status']
             logger.info(f"checking task status: {status}")
@@ -104,16 +103,16 @@ class StableDiffusionGenerator(ImageGenerator):
 
         raise RequestError("Image generation timed out")
 
-    async def generate_and_save_image(self, prompt: str) -> str:
+    async def generate_and_save_image(self, prompt: str, base_image_path: str) -> str:
         image_url = self._config.image_url
         if not image_url:
-            image_url = await self._get_image_url(prompt)
+            image_url = await self._get_image_url(prompt, base_image_path)
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as response:
                 if response.status != 200:
                     raise RequestError(f"Image download failed: {response.status}")
 
-                save_path = self.image_dir / "new_avatar.jpg"
+                save_path = Path(base_image_path).parent / "new_avatar.jpg"
 
                 img = await response.read()
                 image = Image.open(BytesIO(img))

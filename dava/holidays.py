@@ -6,27 +6,29 @@ from dava.config import Config
 
 FRIDAY = "friday the 13th"
 
+
 class HolidayChecker:
 
     def __init__(self, config: Config):
         self.config = config
 
-    def get_today_holiday(self):
+    def get_today_holiday(self, holidays: dict | None = None):
         day_month = '-'.join(str(date.today()).split('-')[1:])
-        if self.config.holidays is not None and day_month in self.config.holidays:
-            return self.config.holidays.get(day_month)
+        h = holidays if holidays is not None else self.config.holidays
+        if h is not None and day_month in h:
+            return h.get(day_month)
         if self.is_friday_13th():
             return FRIDAY
         return Russia().get_holiday_label(date.today())
 
-    def get_clothing(self):
-        holiday = self.get_today_holiday()
+    def get_clothing(self, holidays: dict | None = None):
+        holiday = self.get_today_holiday(holidays)
         if holiday == FRIDAY:
             return "jason costume with mask and machete"
-        return "clothing suitable for celebrating " + self.get_today_holiday()
+        return "clothing suitable for celebrating " + holiday
 
-    def get_details(self):
-        return "everything is prepared for celebrating " + self.get_today_holiday()
+    def get_details(self, holidays: dict | None = None):
+        return "everything is prepared for celebrating " + self.get_today_holiday(holidays)
 
     def is_friday_13th(self):
         today = date.today()

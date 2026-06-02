@@ -25,7 +25,6 @@ NANO_BANANA_MODELS = {
 class NanoBananaGenerator(ImageGenerator):
     def __init__(self, config: Config):
         self._config = config
-        self.image_dir = Path(config.image_dir)
         self._api_key = config.polza_api_key
 
     def _get_model(self) -> str:
@@ -39,8 +38,8 @@ class NanoBananaGenerator(ImageGenerator):
             return NANO_BANANA_MODELS[generator.value]
         return NANO_BANANA_MODELS["nano-banana"]
 
-    def _encode_image(self) -> str:
-        image_path = self.image_dir / "avatar.jpg"
+    def _encode_image(self, base_image_path: str) -> str:
+        image_path = Path(base_image_path)
         logger.debug(f"Reading and encoding image from {image_path}")
         with open(image_path, "rb") as f:
             image_b64 = base64.b64encode(f.read()).decode()
@@ -98,8 +97,8 @@ class NanoBananaGenerator(ImageGenerator):
 
         raise RequestError(f"Media generation timed out after {timeout}s")
 
-    async def generate_and_save_image(self, prompt: str) -> str:
-        image_b64 = self._encode_image()
+    async def generate_and_save_image(self, prompt: str, base_image_path: str) -> str:
+        image_b64 = self._encode_image(base_image_path)
 
         payload = {
             "model": self._get_model(),
@@ -125,7 +124,7 @@ class NanoBananaGenerator(ImageGenerator):
         else:
             raise RequestError(f"Unexpected initial status: {status}, response: {response}")
 
-        save_path = self.image_dir / "new_avatar.jpg"
+        save_path = Path(base_image_path).parent / "new_avatar.jpg"
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as resp:
                 if resp.status != 200:
