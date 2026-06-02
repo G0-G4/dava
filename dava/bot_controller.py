@@ -476,6 +476,15 @@ class BotController:
             return False
 
     async def _update_avatar(self, user_id: int) -> str:
+        if not self.auth.is_allowed(user_id):
+            logger.warning(f"Skipping scheduled update for {user_id}: access not granted")
+            return "Access not granted"
+        if not self.users.load_connection(user_id):
+            logger.warning(f"Skipping scheduled update for {user_id}: no business connection")
+            return "No business connection"
+        if not self.users.has_base_image(user_id):
+            logger.warning(f"Skipping scheduled update for {user_id}: no base image")
+            return "No base image uploaded. Use /upload to send one."
         if user_id in self._running_jobs:
             logger.info(f"Job already running for user {user_id}")
             return "Update already in progress for you"
