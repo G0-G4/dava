@@ -19,13 +19,15 @@ class Style(Enum):
 
 class ImageGenerators(Enum):
     STABLE_DIFFUSION = "stable-diffusion"
+    NANO_BANANA = "nano-banana"
+    NANO_BANANA_2 = "nano-banana-2"
 
 
 class Config:
 
     def __init__(self):
         load_dotenv()
-        self._hidden = {"bot_token", "api_id", "api_hash", "image_dir", "previous_prompt_text"}
+        self._hidden = {"bot_token", "api_id", "api_hash", "image_dir", "previous_prompt_text", "polza_api_key"}
 
         self._config_store = {}
         self.properties = [name for name, value in vars(Config).items() if isinstance(value, property)]
@@ -173,3 +175,11 @@ class Config:
     @property
     def holidays(self) -> dict:
         return self._get_variable("holidays", required=False)
+
+    @property
+    def polza_api_key(self):
+        return self._get_variable("polza_api_key", required=False)
+
+    @property
+    def polza_model(self):
+        return self._get_variable("polza_model", required=False)

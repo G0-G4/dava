@@ -1,7 +1,7 @@
 # dynamic avatar (dava)
 
 - get current weather from https://open-meteo.com/
-- create prompt to generate new avatar based on base image and weather conditions with help of https://stablediffusionweb.com/ru
+- create prompt to generate new avatar based on base image and weather conditions with help of image generators
 - upload it to telegram via Secretary Mode (Chat Automation)
 - profit
 
@@ -23,7 +23,7 @@
 Create a `.env` file:
 
 ```properties
-cookies=cookies to auth in https://stablediffusionweb.com/ru
+# Required for all generators
 image_dir=images
 prompt_text=Ultra-realistic portrait of the same person from reference image, maintaining exact facial features, hairstyle and core expression. The person is situated in {place} during {detailed_description}. Background shows {environmental_details} with appropriate landmarks or scenery of {place}. {lighting_description} creating {mood_description} atmosphere. The person wears {clothing} while maintaining their signature style from original image. Environmental effects: {weather_effects}. Photorealistic, 8K detail, cinematic environmental lighting, perfect skin texture, realistic fabric details, hyper-detailed eyes.
 place=Moscow
@@ -35,9 +35,29 @@ timezone=Europe/Moscow
 bot_token=your_bot_token_from_botfather
 allowed_chat_id=your_telegram_user_id
 previous_prompt_text="will not update photo if prompt hasn't changed"
+
+# Image generator: stable-diffusion, nano-banana, or nano-banana-2
+image_generator=stable-diffusion
+
+# Stable Diffusion settings (required if image_generator=stable-diffusion)
+cookies=cookies to auth in https://stablediffusionweb.com/ru
 image_cfg_scale=0.6
 style=sai-photographic
+
+# Polza.ai settings (required if image_generator=nano-banana or nano-banana-2)
+polza_api_key=your_polza_api_key
+# polza_model=google/gemini-2.5-flash-image   (optional override, defaults based on image_generator)
 ```
+
+#### Image Generators
+
+| Generator | `image_generator` value | Model | Description |
+|-----------|------------------------|-------|-------------|
+| Stable Diffusion | `stable-diffusion` | SD-XL | Uses stablediffusionweb.com (requires `cookies`) |
+| Nano Banana | `nano-banana` | `google/gemini-2.5-flash-image` | Uses Polza.ai API (requires `polza_api_key`) |
+| Nano Banana 2 | `nano-banana-2` | `google/gemini-3.1-flash-image-preview` | Polza.ai, 4K support (requires `polza_api_key`) |
+
+You can also override the Polza model by setting `polza_model` to any model ID supported by Polza.ai (e.g. `google/gemini-2.5-flash-image`).
 
 ### 3. Run
 
