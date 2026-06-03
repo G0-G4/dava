@@ -11,7 +11,7 @@ from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava.avatar_updater import AvatarUpdater
-from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, convert_value
+from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, VideoGenerators, EXTREME_WEATHER_CODES, DEFAULT_VIDEO_ACTIONS, DEFAULT_VIDEO_PROMPT_TEXT, convert_value
 from dava.db import Database
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
@@ -413,6 +413,24 @@ class BotController:
             )
             await event.respond(f"```{json.dumps(weather)}```")
 
+        @self.client.on(events.NewMessage(pattern="/video_mode"))
+        async def video_mode_command(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            parts = event.text.split()
+            if len(parts) == 2 and parts[1] in ("auto", "never"):
+                self.db.save_user_config(user_id, "video_mode", parts[1])
+                await event.respond(f"✅ video_mode set to {parts[1]}")
+            else:
+                current = self._get_effective_value(user_id, "video_mode") or "auto"
+                await event.respond(
+                    f"Current video_mode: {current}\n\n"
+                    "Usage: /video_mode <auto|never>\n\n"
+                    "• `auto` — generate video on holidays and extreme weather\n"
+                    "• `never` — always generate static images",
+                    parse_mode="markdown",
+                )
+
         @self.client.on(events.NewMessage(pattern="/connection"))
         async def show_connection(event):
             await self._check_allowed(event)
@@ -497,10 +515,11 @@ class BotController:
             ("start", "Start bot"),
             ("help", "Show help message"),
             ("settings", "Show your settings"),
-            ("set_variable", "Set your config variable"),
-            ("delete_variable", "Delete your config variable"),
+            ("set_variable", "Set config variable"),
+            ("delete_variable", "Delete config variable"),
             ("update", "Force avatar update now"),
             ("upload", "Upload base image"),
+            ("video_mode", "Set video generation mode"),
             ("schedule", "Show your update schedule"),
             ("add_time", "Add new update time (HH:MM)"),
             ("delete_time", "Delete update time (HH:MM)"),
@@ -536,6 +555,7 @@ class BotController:
 
 🔄 Updates:
 /update - Force update now
+/video_mode - Set video generation mode (auto/never)
 /schedule - Show update schedule
 /add_time - Add new update time
 /delete_time - Delete update time
@@ -590,11 +610,27 @@ class BotController:
             return "Update already in progress for you"
         self._running_jobs.add(user_id)
         try:
-            prompt = await self._prepare_prompt(user_id)
-            image_params = self._resolve_image_params(user_id)
-            await self.updater.async_update_avatar(prompt, user_id, **image_params)
-            logger.info(f"User {user_id}: Avatar updated!")
-            return "✅ Avatar updated!"
+            weather = await self._get_weather(user_id)
+            use_video, weather_code = await self._should_generate_video(weather, user_id)
+            if use_video:
+                prompt = await self._prepare_video_prompt(user_id, weather, weather_code)
+                video_gen = self._get_admin_value("video_generator")
+                if isinstance(video_gen, str):
+                    try:
+                        video_gen = VideoGenerators(video_gen)
+                    except ValueError:
+                        video_gen = None
+                await self.updater.async_update_video_avatar(
+                    prompt, user_id, video_generator=video_gen,
+                )
+                logger.info(f"User {user_id}: Video avatar updated!")
+                return "✅ Video avatar updated!"
+            else:
+                prompt = await self._prepare_prompt(user_id, weather)
+                image_params = self._resolve_image_params(user_id)
+                await self.updater.async_update_avatar(prompt, user_id, **image_params)
+                logger.info(f"User {user_id}: Avatar updated!")
+                return "✅ Avatar updated!"
         except Exception as e:
             error = f"Error while updating avatar: {str(e)}"
             logger.exception(e)
@@ -602,23 +638,15 @@ class BotController:
         finally:
             self._running_jobs.discard(user_id)
 
-    async def _prepare_prompt(self, user_id: int) -> str:
-        lat = self._get_effective_value(user_id, "latitude")
-        lon = self._get_effective_value(user_id, "longitude")
-        tz = self._get_effective_value(user_id, "timezone")
+    async def _prepare_prompt(self, user_id: int, weather: dict | None = None) -> str:
         place = self._get_effective_value(user_id, "place") or ""
-        weather_override = self._get_effective_value(user_id, "weather")
         holidays = self._get_effective_value(user_id, "holidays")
         prompt_template = self._get_effective_value(user_id, "prompt_text")
 
-        weather = await self.weather_descriptor.get_forecast(
-            latitude=float(lat) if lat else None,
-            longitude=float(lon) if lon else None,
-            timezone=tz,
-            weather_override=weather_override,
-        )
+        if weather is None:
+            weather = await self._get_weather(user_id)
         prompt = prompt_template or ""
-        weather = {**weather, "place": place}
+        weather = {**(weather or {}), "place": place}
         holiday = self.holiday_checker.get_today_holiday(holidays)
         if holiday:
             weather["clothing"] = self.holiday_checker.get_clothing(holidays)
@@ -626,6 +654,79 @@ class BotController:
         for key, val in weather.items():
             prompt = prompt.replace("{" + key + "}", str(val))
         logger.info(f"User {user_id}: Prepared prompt: {prompt}")
+        return prompt
+
+    async def _get_weather(self, user_id: int) -> dict | None:
+        lat = self._get_effective_value(user_id, "latitude")
+        lon = self._get_effective_value(user_id, "longitude")
+        tz = self._get_effective_value(user_id, "timezone")
+        weather_override = self._get_effective_value(user_id, "weather")
+        try:
+            return await self.weather_descriptor.get_forecast(
+                latitude=float(lat) if lat else None,
+                longitude=float(lon) if lon else None,
+                timezone=tz,
+                weather_override=weather_override,
+            )
+        except Exception:
+            logger.warning(f"Could not fetch weather for user {user_id}")
+            return None
+
+    async def _should_generate_video(self, weather: dict | None, user_id: int) -> tuple[bool, str | None]:
+        video_mode = self._get_effective_value(user_id, "video_mode")
+        if video_mode == "never":
+            return False, None
+
+        holidays = self._get_effective_value(user_id, "holidays")
+        holiday = self.holiday_checker.get_today_holiday(holidays)
+
+        if holiday:
+            return True, str(weather.get("weather_code", "")) if weather else None
+
+        if weather:
+            weather_code = str(weather.get("weather_code", ""))
+            try:
+                if int(weather_code) in EXTREME_WEATHER_CODES:
+                    return True, weather_code
+            except (ValueError, TypeError):
+                pass
+
+        return False, str(weather.get("weather_code", "")) if weather else None
+
+    async def _prepare_video_prompt(self, user_id: int, weather: dict | None, weather_code: str | None) -> str:
+        place = self._get_effective_value(user_id, "place") or ""
+        holidays = self._get_effective_value(user_id, "holidays")
+        prompt_template = self._get_effective_value(user_id, "video_prompt_text")
+
+        if weather is None:
+            weather = await self._get_weather(user_id) or {}
+        holiday = self.holiday_checker.get_today_holiday(holidays)
+
+        video_actions = self._get_effective_value(user_id, "video_actions") or DEFAULT_VIDEO_ACTIONS
+        if isinstance(video_actions, str):
+            import json as _json
+            video_actions = _json.loads(video_actions)
+
+        action = ""
+        if holiday:
+            holiday_actions = video_actions.get("holidays", {})
+            action = holiday_actions.get(holiday, "")
+        if not action and weather_code:
+            weather_actions = video_actions.get("weather", {})
+            action = weather_actions.get(weather_code, "")
+
+        if not prompt_template:
+            prompt_template = DEFAULT_VIDEO_PROMPT_TEXT
+
+        weather = {**weather, "place": place, "action": action}
+        if holiday:
+            weather["clothing"] = self.holiday_checker.get_clothing(holidays)
+            weather["environmental_details"] = self.holiday_checker.get_details(holidays)
+
+        prompt = prompt_template
+        for key, val in weather.items():
+            prompt = prompt.replace("{" + key + "}", str(val))
+        logger.info(f"User {user_id}: Prepared video prompt: {prompt}")
         return prompt
 
     def _restore_user_schedule(self, user_id: int):

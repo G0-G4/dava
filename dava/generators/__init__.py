@@ -1,6 +1,7 @@
-from dava.config import Config, ImageGenerators, Style
+from dava.config import Config, ImageGenerators, Style, VideoGenerators
 from dava.generators.nano_banana_generator import NanoBananaGenerator
 from dava.generators.stable_diffusion_generator import StableDiffusionGenerator
+from dava.generators.veo_generator import VeoGenerator
 
 
 def get_image_generator(
@@ -44,3 +45,14 @@ def get_image_generator(
         style=style,
         image_url=image_url,
     ))
+
+
+def get_video_generator(
+    config: Config,
+    video_generator: VideoGenerators | str | None = None,
+) -> VeoGenerator:
+    if video_generator is None:
+        video_generator = VideoGenerators.VEO3_FAST
+    if isinstance(video_generator, VideoGenerators):
+        video_generator = video_generator.value
+    return VeoGenerator(config, model=video_generator)

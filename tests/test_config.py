@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from dava.config import Config, Style, ImageGenerators, convert_value, SYSTEM_KEYS, ADMIN_ONLY_KEYS, USER_CONFIGURABLE_KEYS
+from dava.config import Config, Style, ImageGenerators, VideoGenerators, convert_value, SYSTEM_KEYS, ADMIN_ONLY_KEYS, USER_CONFIGURABLE_KEYS, EXTREME_WEATHER_CODES, DEFAULT_VIDEO_ACTIONS
 
 
 class TestConvertValue:
@@ -115,3 +115,63 @@ class TestConfig:
             cfg.migrate_env_to_db(mock_db)
             for call in mock_db.set_global_default.call_args_list:
                 assert call[1].get("skip_if_exists", False) is True
+
+
+class TestVideoGenerators:
+    def test_veo3_fast_value(self):
+        assert VideoGenerators.VEO3_FAST.value == "google/veo3_fast"
+
+    def test_video_generator_in_admin_keys(self):
+        assert "video_generator" in ADMIN_ONLY_KEYS
+
+    def test_video_mode_in_user_keys(self):
+        assert "video_mode" in USER_CONFIGURABLE_KEYS
+
+    def test_video_actions_in_user_keys(self):
+        assert "video_actions" in USER_CONFIGURABLE_KEYS
+
+    def test_video_prompt_text_in_user_keys(self):
+        assert "video_prompt_text" in USER_CONFIGURABLE_KEYS
+
+
+class TestExtremeWeatherCodes:
+    def test_contains_thunderstorm(self):
+        assert 95 in EXTREME_WEATHER_CODES
+
+    def test_contains_heavy_rain(self):
+        assert 65 in EXTREME_WEATHER_CODES
+
+    def test_contains_heavy_snow(self):
+        assert 75 in EXTREME_WEATHER_CODES
+
+    def test_does_not_contain_clear(self):
+        assert 0 not in EXTREME_WEATHER_CODES
+
+    def test_does_not_contain_light_rain(self):
+        assert 61 not in EXTREME_WEATHER_CODES
+
+
+class TestDefaultVideoActions:
+    def test_has_weather_section(self):
+        assert "weather" in DEFAULT_VIDEO_ACTIONS
+
+    def test_has_holidays_section(self):
+        assert "holidays" in DEFAULT_VIDEO_ACTIONS
+
+    def test_thunderstorm_has_action(self):
+        assert "95" in DEFAULT_VIDEO_ACTIONS["weather"]
+
+    def test_friday_13th_has_action(self):
+        assert "friday the 13th" in DEFAULT_VIDEO_ACTIONS["holidays"]
+
+    def test_convert_value_video_generator(self):
+        result = convert_value("video_generator", "google/veo3_fast")
+        assert result == VideoGenerators.VEO3_FAST
+
+    def test_convert_value_video_mode(self):
+        assert convert_value("video_mode", "auto") == "auto"
+
+    def test_convert_value_video_actions(self):
+        raw = json.dumps({"weather": {"95": "lightning"}})
+        result = convert_value("video_actions", raw)
+        assert result == {"weather": {"95": "lightning"}}

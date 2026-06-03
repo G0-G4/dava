@@ -17,6 +17,11 @@ class TestGetForecast:
         result = await wd.get_forecast(weather_override=override)
         assert result == override
 
+    async def test_weather_override_with_code(self, wd):
+        override = {"description": "custom weather", "weather_code": "95"}
+        result = await wd.get_forecast(weather_override=override)
+        assert result == override
+
     async def test_missing_coords_raises(self, wd):
         with pytest.raises(RuntimeError, match="latitude, longitude, and timezone are required"):
             await wd.get_forecast()
@@ -36,6 +41,8 @@ class TestGetForecast:
             result = await wd.get_forecast(latitude=55.75, longitude=37.62, timezone="Europe/Moscow")
             assert "description" in result
             assert result["description"] == "Sunny"
+            assert "weather_code" in result
+            assert result["weather_code"] == "0"
 
     @patch("dava.weather_descriptor.make_request", new_callable=AsyncMock)
     async def test_api_response_night(self, mock_request, wd):
@@ -47,6 +54,7 @@ class TestGetForecast:
             mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
             result = await wd.get_forecast(latitude=55.75, longitude=37.62, timezone="Europe/Moscow")
             assert result["description"] == "Clear Summer Night"
+            assert result["weather_code"] == "0"
 
 
 class TestSeasonMapping:

@@ -250,6 +250,20 @@ class TestCache:
         finally:
             src.unlink(missing_ok=True)
 
+    def test_compute_cache_hash_different_mode(self, db):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(b"image data")
+            src = Path(f.name)
+        try:
+            db.ensure_user(1)
+            db.save_base_image(1, src)
+            h_img = db.compute_cache_hash(1, "test prompt", mode="image")
+            h_vid = db.compute_cache_hash(1, "test prompt", mode="video")
+            assert h_img != h_vid
+        finally:
+            src.unlink(missing_ok=True)
+
     def test_compute_cache_hash_raises_without_image(self, db):
         with pytest.raises(RuntimeError, match="No base image"):
             db.compute_cache_hash(999, "prompt")
@@ -257,14 +271,26 @@ class TestCache:
     def test_check_cache_miss(self, db):
         assert db.check_cache(1, "nonexistent_hash") is None
 
-    def test_check_cache_hit(self, db, tmp_data_dir):
+    def test_check_cache_hit_image(self, db, tmp_data_dir):
         user_dir = tmp_data_dir / "users" / "1"
         user_dir.mkdir(parents=True, exist_ok=True)
         cache_file = user_dir / "abc123.jpg"
         cache_file.write_bytes(b"cached image")
-        result = db.check_cache(1, "abc123")
+        result = db.check_cache(1, "abc123", mode="image")
         assert result == str(cache_file)
 
-    def test_get_cache_path(self, db):
-        path = db.get_cache_path(1, "hash123")
+    def test_check_cache_hit_video(self, db, tmp_data_dir):
+        user_dir = tmp_data_dir / "users" / "1"
+        user_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = user_dir / "abc123.mp4"
+        cache_file.write_bytes(b"cached video")
+        result = db.check_cache(1, "abc123", mode="video")
+        assert result == str(cache_file)
+
+    def test_get_cache_path_image(self, db):
+        path = db.get_cache_path(1, "hash123", mode="image")
         assert str(path).endswith("hash123.jpg")
+
+    def test_get_cache_path_video(self, db):
+        path = db.get_cache_path(1, "hash123", mode="video")
+        assert str(path).endswith("hash123.mp4")

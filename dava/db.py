@@ -257,22 +257,23 @@ class Database:
 
     # -- Cache --
 
-    def compute_cache_hash(self, user_id: int, prompt: str) -> str:
+    def compute_cache_hash(self, user_id: int, prompt: str, mode: str = "image") -> str:
         base_image_path = self.get_base_image_path(user_id)
         if not base_image_path:
             raise RuntimeError(f"No base image found for user {user_id}")
         image_bytes = Path(base_image_path).read_bytes()
-        digest = hashlib.sha256(image_bytes + prompt.encode()).hexdigest()
+        digest = hashlib.sha256(image_bytes + prompt.encode() + mode.encode()).hexdigest()
         return digest
 
-    def get_cache_path(self, user_id: int, cache_hash: str) -> Path:
+    def get_cache_path(self, user_id: int, cache_hash: str, mode: str = "image") -> Path:
         user_dir = self._data_dir / "users" / str(user_id)
         user_dir.mkdir(parents=True, exist_ok=True)
-        return user_dir / f"{cache_hash}.jpg"
+        ext = "mp4" if mode == "video" else "jpg"
+        return user_dir / f"{cache_hash}.{ext}"
 
-    def check_cache(self, user_id: int, cache_hash: str) -> str | None:
-        path = self.get_cache_path(user_id, cache_hash)
+    def check_cache(self, user_id: int, cache_hash: str, mode: str = "image") -> str | None:
+        path = self.get_cache_path(user_id, cache_hash, mode=mode)
         if path.exists():
-            logger.info(f"Cache hit for user {user_id}: {cache_hash}")
+            logger.info(f"Cache hit for user {user_id}: {cache_hash} ({mode})")
             return str(path)
         return None

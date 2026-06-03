@@ -54,4 +54,6 @@ class WeatherDescriptor:
         if weather_code not in weather_codes:
             logger.warning(f"Unknown weather code: {weather_code}")
             weather_code = '2'
-        return weather_codes[weather_code][season][day]
+        result = dict(weather_codes[weather_code][season][day])
+        result["weather_code"] = weather_code
+        return result

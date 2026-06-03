@@ -18,6 +18,10 @@ class ImageGenerators(Enum):
     NANO_BANANA_2 = "nano-banana-2"
 
 
+class VideoGenerators(Enum):
+    VEO3_FAST = "google/veo3_fast"
+
+
 SYSTEM_KEYS = frozenset({
     "bot_token",
     "api_id",
@@ -34,6 +38,7 @@ ADMIN_ONLY_KEYS = frozenset({
     "style",
     "image_cfg_scale",
     "image_url",
+    "video_generator",
 })
 
 USER_CONFIGURABLE_KEYS = frozenset({
@@ -44,6 +49,9 @@ USER_CONFIGURABLE_KEYS = frozenset({
     "timezone",
     "weather",
     "holidays",
+    "video_mode",
+    "video_actions",
+    "video_prompt_text",
 })
 
 ALL_CONFIGURABLE_KEYS = ADMIN_ONLY_KEYS | USER_CONFIGURABLE_KEYS
@@ -54,6 +62,7 @@ _TYPE_MAP = {
     "style": Style,
     "image_cfg_scale": float,
     "image_url": str,
+    "video_generator": VideoGenerators,
     "prompt_text": str,
     "place": str,
     "latitude": float,
@@ -61,6 +70,49 @@ _TYPE_MAP = {
     "timezone": str,
     "weather": dict,
     "holidays": dict,
+    "video_mode": str,
+    "video_actions": dict,
+    "video_prompt_text": str,
+}
+
+DEFAULT_VIDEO_PROMPT_TEXT = "Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"
+
+EXTREME_WEATHER_CODES = frozenset({
+    55, 57, 65, 66, 67,
+    71, 73, 75, 77,
+    82, 86,
+    95, 96, 99
+})
+
+DEFAULT_VIDEO_ACTIONS = {
+    "weather": {
+        "55": "thick drizzle falling steadily, rain streaks across the frame",
+        "57": "intense freezing drizzle, ice forming on surfaces, shivering",
+        "65": "torrential rain pouring in sheets, rapid splashing in puddles",
+        "66": "freezing rain coating surfaces with ice, ice crackling",
+        "67": "heavy freezing rain, ice accumulating, dramatic ice formations",
+        "71": "gentle snowfall, snowflakes drifting softly in the air",
+        "73": "moderate snowfall, snowflakes swirling in the wind",
+        "75": "heavy snowfall with large flakes swirling in the wind, blizzard-like",
+        "77": "snow grains scattering in the wind, icy particles dancing",
+        "82": "violent rain showers, water splashing intensely, dramatic downpour",
+        "86": "snow blowing sideways in gusty wind, wintry squall",
+        "95": "dramatic lightning flash illuminating the scene, thunder rumble, wind howling",
+        "96": "thunderstorm with hail stones bouncing off surfaces",
+        "99": "intense thunderstorm with large hail, violent wind gusts, dramatic lightning",
+    },
+    "holidays": {
+        "New Year's Day": "fireworks exploding in colorful bursts, confetti drifting down, festive lights twinkling",
+        "Christmas Day": "twinkling Christmas lights, gentle snow falling, warm candlelight flickering",
+        "Orthodox Christmas Day": "candle flame flickering softly, golden church bells, snow drifting gently",
+        "Defender of the Fatherland Day": "military bands marching, flags waving in the wind",
+        "International Women's Day": "flowers gently swaying, soft petals falling, warm spring light",
+        "Spring and Labour Day": "cherry blossoms fluttering in a gentle breeze, bright sunshine",
+        "Victory Day": "fireworks bursting over a city skyline, flags waving solemnly",
+        "Russia Day": "flag waving proudly, fireworks lighting up the sky",
+        "Unity Day": "warm candlelight glowing, autumn leaves swirling gently",
+        "friday the 13th": "eerie fog rolling across the frame, candle flame flickering, shadows creeping along walls",
+    },
 }
 
 
