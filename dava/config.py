@@ -69,9 +69,9 @@ def convert_value(key: str, raw: str):
     if type_fn is dict:
         return json.loads(raw)
     if type_fn is Style:
-        return Style(raw)
+        return raw
     if type_fn is ImageGenerators:
-        return ImageGenerators(raw)
+        return raw
     return type_fn(raw)
 
 

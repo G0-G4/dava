@@ -99,7 +99,7 @@ class BotController:
             self.db.save_connection(
                 user_id=user_id,
                 connection_id=connection.connection_id,
-                connection_user_id=connection.user_id,
+                tg_user_id=connection.user_id,
                 rights=rights,
             )
             logger.info(f"Business connection established: {connection.connection_id} (user_id={user_id})")
@@ -588,10 +588,10 @@ class BotController:
         if user_id in self._running_jobs:
             logger.info(f"Job already running for user {user_id}")
             return "Update already in progress for you"
-        prompt = await self._prepare_prompt(user_id)
-        image_params = self._resolve_image_params(user_id)
+        self._running_jobs.add(user_id)
         try:
-            self._running_jobs.add(user_id)
+            prompt = await self._prepare_prompt(user_id)
+            image_params = self._resolve_image_params(user_id)
             await self.updater.async_update_avatar(prompt, user_id, **image_params)
             logger.info(f"User {user_id}: Avatar updated!")
             return "✅ Avatar updated!"

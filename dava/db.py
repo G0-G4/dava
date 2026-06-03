@@ -225,7 +225,7 @@ class Database:
         self._conn.execute(
             """INSERT INTO user_config (user_id, key, value) VALUES (?, ?, ?)
                ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value""",
-            (user_id, json.dumps(value)),
+            (user_id, key, json.dumps(value)),
         )
         self._conn.commit()
 
