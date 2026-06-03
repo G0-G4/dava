@@ -3,6 +3,7 @@
 - get current weather from https://open-meteo.com/
 - create prompt to generate new avatar based on base image and weather conditions with help of image generators
 - upload it to telegram via Secretary Mode (Chat Automation)
+- optionally generate **video profile photos** on holidays and extreme weather using Veo 3.1 Fast
 - profit
 
 ![dava](dava.gif)
@@ -59,6 +60,25 @@ polza_api_key=your_polza_api_key
 
 You can also override the Polza model by setting `polza_model` to any model ID supported by Polza.ai (e.g. `google/gemini-2.5-flash-image`).
 
+#### Video Generation
+
+The bot can also generate **video profile photos** using Veo 3.1 Fast via the Polza.ai API. Video generation is triggered automatically on:
+
+- **Holidays** — Russian public holidays and Friday the 13th
+- **Extreme weather** — thunderstorms, heavy rain/snow, hail, etc. (weather codes with actions in `video_actions.weather`)
+
+Video settings are seeded with sensible defaults in the database and can be configured via bot commands:
+
+| Setting | Config key | Type | Description |
+|---------|-----------|------|-------------|
+| Video mode | `video_mode` | `auto` or `never` | `auto` generates video on triggers; `never` disables it. Default: `auto` |
+| Video actions | `video_actions` | dict | Maps weather codes and holiday names to action descriptions for the prompt |
+| Video prompt | `video_prompt_text` | string | Template for video prompts. Default: `"Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"` |
+
+Use the `/video_mode` bot command to toggle video generation on/off.
+
+**System requirements**: `ffmpeg` must be installed — it's used to crop video from 9:16 to 1:1 and truncate to 3 seconds for Telegram compatibility.
+
 ### 3. Run
 
 - create `logs` folder
@@ -67,9 +87,15 @@ You can also override the Polza model by setting `polza_model` to any model ID s
 - no phone login required — the bot uses Secretary Mode to update your profile photo
 
 ```bash
+# First run: apply database migrations
+uv run scripts/run_migrations.py
+
+# Start the bot
 uv run main.py
 ```
 
 ### How it works
 
 Instead of logging into your personal Telegram account, the bot uses **Secretary Mode** (Chat Automation). When you connect the bot to your profile via Settings > Chat Automation, the bot receives a `business_connection_id` with the `edit_profile_photo` right. This allows the bot to update your profile photo directly through the Telegram API — no full account access needed.
+
+For video avatars, the bot generates a 9:16 video via Veo 3.1 Fast, then uses `ffmpeg` to center-crop it to 1:1, truncate to 3 seconds, and strip audio. Telegram requires both a static frame (JPG) and the video file to set a video profile photo.
