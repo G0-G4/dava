@@ -32,13 +32,13 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
   - `run_migrations.py` — discovers and runs pending migrations, tracks applied ones in `schema_version` table
   - `migrations/001_initial_schema.py` — creates users, user_config, global_config tables
   - `migrations/002_seed_video_defaults.py` — seeds video_actions, video_prompt_text into global_config
-  - `migrations/003_migrate_env_vars.py` — migrates `.env` configurable keys to global_config (skip_if_exists)
+  - `migrations/003_seed_app_defaults.py` — seeds application defaults (prompt_text, place, coords, etc.) into global_config
 
 ## Key Conventions & Gotchas
 
 - Config is **tiered**: system keys (env-only), admin-only keys, user-configurable keys. User config resolves as: user override → global default → env fallback
 - Config defaults (video_actions, video_prompt_text) are **seeded via migration** `002_seed_video_defaults.py`, not hardcoded in `config.py`. Bot code uses inline fallbacks for crash-safety if DB values are missing
-- `.env` values are migrated to `global_config` via migration `003_migrate_env_vars.py` (no more `Config.migrate_env_to_db()` call in `main.py`)
+- `.env` values are no longer migrated to DB; migration `003_seed_app_defaults.py` seeds hardcoded defaults
 - `Config` is synchronous (reads env vars on property access), not a dataclass
 - `Database` is **synchronous** (`sqlite3`), despite being used inside async handlers. No async DB driver.
 - `Database.__init__` no longer auto-creates tables by default (`auto_create=False`). Migrations handle schema creation
