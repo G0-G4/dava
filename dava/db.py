@@ -1,7 +1,6 @@
 import hashlib
 import json
 import logging
-import os
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,6 @@ class Database:
         self._db_path = Path(db_path)
         self._data_dir = Path(data_dir)
         self._admin_ids: set[int] = admin_ids or set()
-        self._admin_ids.update(self._load_admin_ids_from_env())
         self._conn = sqlite3.connect(str(self._db_path))
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -22,17 +20,6 @@ class Database:
         self._create_tables()
         self._data_dir.mkdir(parents=True, exist_ok=True)
         (self._data_dir / "users").mkdir(parents=True, exist_ok=True)
-
-    def _load_admin_ids_from_env(self) -> set[int]:
-        env_value = os.getenv("admin_chat_ids", "")
-        ids = set()
-        if env_value:
-            for id_str in env_value.split(","):
-                id_str = id_str.strip()
-                if id_str:
-                    ids.add(int(id_str))
-        logger.info(f"Admin IDs: {ids}")
-        return ids
 
     def _create_tables(self):
         self._conn.executescript("""
@@ -51,6 +38,10 @@ class Database:
                 value TEXT NOT NULL,
                 PRIMARY KEY (user_id, key),
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
+            );
+            CREATE TABLE IF NOT EXISTS global_config (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             );
         """)
         self._conn.commit()
@@ -184,7 +175,44 @@ class Database:
             return None
         return row["base_image_path"]
 
-    # -- Config --
+# -- Global config --
+
+    def get_global_default(self, key: str):
+        row = self._conn.execute(
+            "SELECT value FROM global_config WHERE key = ?", (key,)
+        ).fetchone()
+        if row:
+            return json.loads(row["value"])
+        return None
+
+    def set_global_default(self, key: str, value: Any, skip_if_exists: bool = False):
+        if skip_if_exists:
+            existing = self._conn.execute(
+                "SELECT 1 FROM global_config WHERE key = ?", (key,)
+            ).fetchone()
+            if existing:
+                return
+        self._conn.execute(
+            """INSERT INTO global_config (key, value) VALUES (?, ?)
+               ON CONFLICT(key) DO UPDATE SET value = excluded.value""",
+            (key, json.dumps(value)),
+        )
+        self._conn.commit()
+
+    def delete_global_default(self, key: str):
+        self._conn.execute(
+            "DELETE FROM global_config WHERE key = ?", (key,)
+        )
+        self._conn.commit()
+
+    def list_global_defaults(self) -> dict:
+        rows = self._conn.execute("SELECT key, value FROM global_config").fetchall()
+        return {row["key"]: json.loads(row["value"]) for row in rows}
+
+    def get_admin_value(self, key: str):
+        return self.get_global_default(key)
+
+    # -- User config --
 
     def load_user_config(self, user_id: int) -> dict:
         rows = self._conn.execute(
@@ -197,7 +225,7 @@ class Database:
         self._conn.execute(
             """INSERT INTO user_config (user_id, key, value) VALUES (?, ?, ?)
                ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value""",
-            (user_id, key, json.dumps(value)),
+            (user_id, json.dumps(value)),
         )
         self._conn.commit()
 
@@ -207,14 +235,14 @@ class Database:
         )
         self._conn.commit()
 
-    def get_effective_value(self, user_id: int, key: str, global_default=None):
+    def get_effective_value(self, user_id: int, key: str):
         row = self._conn.execute(
             "SELECT value FROM user_config WHERE user_id = ? AND key = ?",
             (user_id, key),
         ).fetchone()
         if row:
             return json.loads(row["value"])
-        return global_default
+        return self.get_global_default(key)
 
     # -- Schedule convenience --
 

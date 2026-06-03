@@ -11,7 +11,7 @@ from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava.avatar_updater import AvatarUpdater
-from dava.config import Config
+from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, convert_value
 from dava.db import Database
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
@@ -56,8 +56,9 @@ class BotController:
         self._pending_var: dict[int, str] = {}
         self._pending_time: set[int] = set()
         self._pending_upload: set[int] = set()
+        self._pending_global_var: set[int] = set()
         self._running_jobs: set[int] = set()
-        self.holiday_checker = HolidayChecker(config)
+        self.holiday_checker = HolidayChecker()
         self._setup_handlers()
 
     async def start(self):
@@ -76,7 +77,10 @@ class BotController:
             raise RuntimeError(f"Unauthorized user {event.chat_id} tried to use bot")
 
     def _get_effective_value(self, user_id: int, key: str):
-        return self.db.get_effective_value(user_id, key, getattr(self._config, key, None))
+        return self.db.get_effective_value(user_id, key)
+
+    def _get_admin_value(self, key: str):
+        return self.db.get_admin_value(key)
 
     def _setup_handlers(self):
         @self.client.on(events.Raw(types=tl_types.UpdateBotBusinessConnect))
@@ -95,7 +99,7 @@ class BotController:
             self.db.save_connection(
                 user_id=user_id,
                 connection_id=connection.connection_id,
-                tg_user_id=connection.user_id,
+                connection_user_id=connection.user_id,
                 rights=rights,
             )
             logger.info(f"Business connection established: {connection.connection_id} (user_id={user_id})")
@@ -133,6 +137,15 @@ class BotController:
                 var_name = event.data.decode().split("-")[1]
                 self.db.delete_user_config_key(user_id, var_name)
                 await event.respond(f"✅ {var_name} has been deleted")
+            elif event.data.startswith(b"setglobalvar-"):
+                var_name = event.data.decode().split("-")[1]
+                self._pending_var[user_id] = var_name
+                self._pending_global_var.add(user_id)
+                await event.respond(f"Please send the new global value for {var_name}")
+            elif event.data.startswith(b"deleteglobalvar-"):
+                var_name = event.data.decode().split("-")[1]
+                self.db.delete_global_default(var_name)
+                await event.respond(f"✅ Global default {var_name} has been deleted")
             elif event.data.startswith(b"deletetime-"):
                 time_str = event.data.decode().split("-")[1]
                 schedule = self.db.load_schedule(user_id)
@@ -153,8 +166,15 @@ class BotController:
                 if user_id in self._pending_var and not event.text.startswith("/"):
                     var_name = self._pending_var.pop(user_id)
                     new_value = event.text
-                    self.db.save_user_config(user_id, var_name, new_value)
-                    await event.respond(f"✅ {var_name} set to {new_value}")
+                    is_global = user_id in self._pending_global_var
+                    self._pending_global_var.discard(user_id)
+                    if is_global:
+                        converted = convert_value(var_name, new_value)
+                        self.db.set_global_default(var_name, converted)
+                        await event.respond(f"✅ Global default {var_name} set to {converted}")
+                    else:
+                        self.db.save_user_config(user_id, var_name, new_value)
+                        await event.respond(f"✅ {var_name} set to {new_value}")
                 elif user_id in self._pending_time and not event.text.startswith("/"):
                     self._pending_time.discard(user_id)
                     time_str = event.text.strip()
@@ -191,19 +211,34 @@ class BotController:
             await self._check_allowed(event)
             user_id = event.chat_id
             user_config = self.db.load_user_config(user_id)
-            global_vars = self._config.all_variables()
+            global_config = self.db.list_global_defaults()
             lines = []
-            for k, v in global_vars.items():
-                user_val = user_config.get(k)
-                if user_val is not None:
-                    lines.append(f"🔹 {k}: `{user_val}` (override)")
-                else:
-                    lines.append(f"🔹 {k}: `{v}` (default)")
+
+            admin_lines = []
+            for key in sorted(ADMIN_ONLY_KEYS):
+                val = global_config.get(key)
+                if val is not None:
+                    admin_lines.append(f"⚙️ {key}: `{val}`")
+
+            user_lines = []
+            for key in sorted(USER_CONFIGURABLE_KEYS):
+                if key in user_config and key != "schedule":
+                    user_lines.append(f"🔹 {key}: `{user_config[key]}` (your override)")
+                elif key in global_config:
+                    user_lines.append(f"🔹 {key}: `{global_config[key]}` (default)")
+
+            if admin_lines:
+                lines.append("⚙️ Admin-only settings:")
+                lines.extend(admin_lines)
+            if user_lines:
+                lines.append("")
+                lines.append("👤 Your settings:")
+                lines.extend(user_lines)
             for k, v in user_config.items():
-                if k not in global_vars and k != "schedule":
-                    lines.append(f"🔹 {k}: `{v}`")
+                if k not in USER_CONFIGURABLE_KEYS and k not in ADMIN_ONLY_KEYS and k != "schedule":
+                    lines.append(f"🔸 {k}: `{v}`")
             await event.respond(
-                "Your settings (click to copy):\n\n" + "\n".join(lines),
+                "\n".join(lines),
                 parse_mode="markdown",
             )
 
@@ -214,22 +249,90 @@ class BotController:
             parts = event.text.split()
             if len(parts) == 3:
                 _, name, val = parts
+                if name not in USER_CONFIGURABLE_KEYS:
+                    await event.respond(f"❌ `{name}` is not a user-configurable variable. Available: {', '.join(sorted(USER_CONFIGURABLE_KEYS))}")
+                    return
                 self.db.save_user_config(user_id, name, val)
                 await event.respond(f"✅ {name} set to {val}")
             else:
                 user_config = self.db.load_user_config(user_id)
-                global_vars = self._config.all_variables()
-                all_keys = list(global_vars.keys()) + [k for k in user_config if k not in global_vars and k != "schedule"]
                 buttons = []
-                for var in all_keys:
+                for var in sorted(USER_CONFIGURABLE_KEYS):
+                    suffix = " (override)" if var in user_config else ""
                     buttons.append([KeyboardButtonCallback(
-                        text=var,
+                        text=f"{var}{suffix}",
                         data=f"setvar-{var}".encode(),
                     )])
                 await event.respond(
                     "Select variable to change:",
                     buttons=buttons,
                 )
+
+        @self.client.on(events.NewMessage(pattern="/delete_variable"))
+        async def delete_variable(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            user_config = self.db.load_user_config(user_id)
+            variables = [k for k in user_config if k in USER_CONFIGURABLE_KEYS]
+            if not variables:
+                await event.respond("No user variables to delete")
+                return
+            buttons = []
+            for var in sorted(variables):
+                buttons.append([KeyboardButtonCallback(
+                    text=var,
+                    data=f"deletevar-{var}".encode(),
+                )])
+            await event.respond(
+                "Select variable to delete:",
+                buttons=buttons,
+            )
+
+        @self.client.on(events.NewMessage(pattern="/set_global_variable"))
+        async def set_global_variable(event):
+            await self._check_admin(event)
+            parts = event.text.split()
+            if len(parts) == 3:
+                _, name, val = parts
+                if name not in ALL_CONFIGURABLE_KEYS:
+                    await event.respond(f"❌ `{name}` is not a configurable variable. Available: {', '.join(sorted(ALL_CONFIGURABLE_KEYS))}")
+                    return
+                converted = convert_value(name, val)
+                self.db.set_global_default(name, converted)
+                await event.respond(f"✅ Global default {name} set to {converted}")
+            else:
+                global_config = self.db.list_global_defaults()
+                buttons = []
+                for var in sorted(ALL_CONFIGURABLE_KEYS):
+                    suffix = f" = {global_config[var]}" if var in global_config else " (not set)"
+                    tier = "🔒" if var in ADMIN_ONLY_KEYS else "👤"
+                    buttons.append([KeyboardButtonCallback(
+                        text=f"{tier} {var}{suffix}",
+                        data=f"setglobalvar-{var}".encode(),
+                    )])
+                await event.respond(
+                    "Select global variable to change:",
+                    buttons=buttons,
+                )
+
+        @self.client.on(events.NewMessage(pattern="/delete_global_variable"))
+        async def delete_global_variable(event):
+            await self._check_admin(event)
+            global_config = self.db.list_global_defaults()
+            if not global_config:
+                await event.respond("No global variables to delete")
+                return
+            buttons = []
+            for var in sorted(global_config.keys()):
+                tier = "🔒" if var in ADMIN_ONLY_KEYS else "👤"
+                buttons.append([KeyboardButtonCallback(
+                    text=f"{tier} {var} = {global_config[var]}",
+                    data=f"deleteglobalvar-{var}".encode(),
+                )])
+            await event.respond(
+                "Select global variable to delete:",
+                buttons=buttons,
+            )
 
         @self.client.on(events.NewMessage(pattern="/update"))
         async def manual_update(event):
@@ -285,26 +388,6 @@ class BotController:
                 )
             except Exception as e:
                 await event.respond(f"❌ Error: {str(e)}")
-
-        @self.client.on(events.NewMessage(pattern="/delete_variable"))
-        async def delete_variable(event):
-            await self._check_allowed(event)
-            user_id = event.chat_id
-            user_config = self.db.load_user_config(user_id)
-            variables = [k for k in user_config if k != "schedule"]
-            if not variables:
-                await event.respond("No user variables to delete")
-                return
-            buttons = []
-            for var in variables:
-                buttons.append([KeyboardButtonCallback(
-                    text=var,
-                    data=f"deletevar-{var}".encode(),
-                )])
-            await event.respond(
-                "Select variable to delete:",
-                buttons=buttons,
-            )
 
         @self.client.on(events.NewMessage(pattern="/logs"))
         async def logs_command(event):
@@ -429,6 +512,8 @@ class BotController:
             ("grant", "Grant access to user"),
             ("revoke", "Revoke access from user"),
             ("list_users", "List all users with access"),
+            ("set_global_variable", "Set global config variable"),
+            ("delete_global_variable", "Delete global config variable"),
         ]
         await self.client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(),
@@ -463,6 +548,8 @@ class BotController:
 /grant <user_id> - Grant access
 /revoke <user_id> - Revoke access
 /list_users - List all users
+/set_global_variable - Set global default variable
+/delete_global_variable - Delete global default variable
 /logs - Show recent logs"""
         await event.respond(help_text)
 
@@ -472,6 +559,21 @@ class BotController:
             return True
         except ValueError:
             return False
+
+    def _resolve_image_params(self, user_id: int) -> dict:
+        image_generator = self._get_admin_value("image_generator")
+        if isinstance(image_generator, str):
+            try:
+                image_generator = ImageGenerators(image_generator)
+            except ValueError:
+                image_generator = None
+        return {
+            "image_generator": image_generator,
+            "polza_model": self._get_admin_value("polza_model"),
+            "style": self._get_admin_value("style"),
+            "image_cfg_scale": self._get_admin_value("image_cfg_scale"),
+            "image_url": self._get_admin_value("image_url"),
+        }
 
     async def _update_avatar(self, user_id: int) -> str:
         if not self.db.is_allowed(user_id):
@@ -487,9 +589,10 @@ class BotController:
             logger.info(f"Job already running for user {user_id}")
             return "Update already in progress for you"
         prompt = await self._prepare_prompt(user_id)
+        image_params = self._resolve_image_params(user_id)
         try:
             self._running_jobs.add(user_id)
-            await self.updater.async_update_avatar(prompt, user_id)
+            await self.updater.async_update_avatar(prompt, user_id, **image_params)
             logger.info(f"User {user_id}: Avatar updated!")
             return "✅ Avatar updated!"
         except Exception as e:
@@ -521,7 +624,7 @@ class BotController:
             weather["clothing"] = self.holiday_checker.get_clothing(holidays)
             weather["environmental_details"] = self.holiday_checker.get_details(holidays)
         for key, val in weather.items():
-            prompt = prompt.replace("{" + key + "}", val)
+            prompt = prompt.replace("{" + key + "}", str(val))
         logger.info(f"User {user_id}: Prepared prompt: {prompt}")
         return prompt
 

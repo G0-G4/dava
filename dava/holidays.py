@@ -2,21 +2,16 @@ from datetime import date
 
 from workalendar.europe import Russia
 
-from dava.config import Config
-
 FRIDAY = "friday the 13th"
 
 
 class HolidayChecker:
 
-    def __init__(self, config: Config):
-        self.config = config
-
     def get_today_holiday(self, holidays: dict | None = None):
-        day_month = '-'.join(str(date.today()).split('-')[1:])
-        h = holidays if holidays is not None else self.config.holidays
-        if h is not None and day_month in h:
-            return h.get(day_month)
+        if holidays is not None:
+            day_month = '-'.join(str(date.today()).split('-')[1:])
+            if day_month in holidays:
+                return holidays.get(day_month)
         if self.is_friday_13th():
             return FRIDAY
         return Russia().get_holiday_label(date.today())
@@ -36,6 +31,5 @@ class HolidayChecker:
 
 
 if __name__ == '__main__':
-    config = Config()
-    hc = HolidayChecker(config)
+    hc = HolidayChecker()
     print(hc.get_today_holiday())

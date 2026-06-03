@@ -5,7 +5,7 @@ from telethon import TelegramClient
 from telethon.tl.functions.photos import UploadProfilePhotoRequest
 from telethon.tl.types import InputUser
 
-from dava.config import Config
+from dava.config import Config, ImageGenerators, Style
 from dava.db import Database
 from dava.generators import get_image_generator
 
@@ -18,7 +18,16 @@ class AvatarUpdater:
         self.db = db
         self.client: TelegramClient | None = None
 
-    async def async_update_avatar(self, prompt: str, user_id: int):
+    async def async_update_avatar(
+        self,
+        prompt: str,
+        user_id: int,
+        image_generator: ImageGenerators | None = None,
+        polza_model: str | None = None,
+        style: Style | str | None = None,
+        image_cfg_scale: float | None = None,
+        image_url: str | None = None,
+    ):
         connection = self.db.load_connection(user_id)
         if not connection:
             raise RuntimeError(
@@ -49,7 +58,15 @@ class AvatarUpdater:
         else:
             logger.info(f"User {user_id}: Cache miss, generating new image")
             output_path = str(self.db.get_cache_path(user_id, cache_hash))
-            img_path = await get_image_generator(self.config).generate_and_save_image(
+            generator = get_image_generator(
+                self.config,
+                image_generator=image_generator,
+                polza_model=polza_model,
+                style=style,
+                image_cfg_scale=image_cfg_scale,
+                image_url=image_url,
+            )
+            img_path = await generator.generate_and_save_image(
                 prompt, base_image_path, output_path
             )
 

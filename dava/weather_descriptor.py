@@ -4,14 +4,12 @@ from datetime import datetime
 
 from dava.weather_codes import codes as weather_codes
 from dava.common import make_request
-from dava.config import Config
 
 logger = logging.getLogger(__name__)
 
 
 class WeatherDescriptor:
-    def __init__(self, config: Config):
-        self._config = config
+    def __init__(self):
         self.base_url = "https://api.open-meteo.com/v1/forecast"
 
     async def get_forecast(
@@ -24,18 +22,17 @@ class WeatherDescriptor:
         if weather_override:
             return weather_override
 
-        lat = latitude if latitude is not None else self._config.latitude
-        lon = longitude if longitude is not None else self._config.longitude
-        tz = timezone or self._config.timezone
+        if latitude is None or longitude is None or timezone is None:
+            raise RuntimeError("latitude, longitude, and timezone are required when weather_override is not provided")
 
         response = await make_request(
             url=self.base_url,
             headers={},
             method="GET",
             params={
-                "latitude": lat,
-                "longitude": lon,
-                "timezone": tz,
+                "latitude": latitude,
+                "longitude": longitude,
+                "timezone": timezone,
                 "current": ["weather_code", "is_day"],
             },
         )

@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 from PIL import Image
-from dava.config import Config
+from dava.config import Config, Style
 from dava.errors import RequestError
 from dava.generators.image_generator import ImageGenerator
 from dava.common import make_request
@@ -42,8 +42,11 @@ IMAGE_CONFIG = {
 }
 
 class StableDiffusionGenerator(ImageGenerator):
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, image_cfg_scale: float | None = None, style: Style | None = None, image_url: str | None = None):
         self._config = config
+        self._image_cfg_scale = image_cfg_scale
+        self._style = style
+        self._image_url = image_url
 
     def _get_and_encode_image(self, base_image_path: str) -> str:
         image_path = Path(base_image_path)
@@ -60,8 +63,8 @@ class StableDiffusionGenerator(ImageGenerator):
                     "model": "SD-XL",
                     "prompt": prompt,
                     "negative_prompt": "",
-                    "image_cfg_scale": self._config.image_cfg_scale,
-                    "style": self._config.style.value if self._config.style else None,
+                    "image_cfg_scale": self._image_cfg_scale if self._image_cfg_scale is not None else 0.8,
+                    "style": (self._style.value if self._style else None),
                     **IMAGE_CONFIG,
                     "input_image": image_b64
                 }
@@ -104,7 +107,7 @@ class StableDiffusionGenerator(ImageGenerator):
         raise RequestError("Image generation timed out")
 
     async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
-        image_url = self._config.image_url
+        image_url = self._image_url
         if not image_url:
             image_url = await self._get_image_url(prompt, base_image_path)
         async with aiohttp.ClientSession() as session:

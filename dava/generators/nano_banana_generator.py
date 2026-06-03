@@ -7,7 +7,7 @@ from pathlib import Path
 import aiohttp
 import aiofiles
 
-from dava.config import Config
+from dava.config import Config, ImageGenerators
 from dava.errors import RequestError
 from dava.generators.image_generator import ImageGenerator
 
@@ -22,17 +22,19 @@ NANO_BANANA_MODELS = {
 
 
 class NanoBananaGenerator(ImageGenerator):
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, polza_model: str | None = None, image_generator: ImageGenerators | None = None):
         self._config = config
         self._api_key = config.polza_api_key
+        self._polza_model = polza_model
+        self._image_generator = image_generator
 
     def _get_model(self) -> str:
-        model = self._config.polza_model
+        model = self._polza_model
         if model:
             if model in NANO_BANANA_MODELS:
                 return NANO_BANANA_MODELS[model]
             return model
-        generator = self._config.image_generator
+        generator = self._image_generator
         if generator and generator.value in NANO_BANANA_MODELS:
             return NANO_BANANA_MODELS[generator.value]
         return NANO_BANANA_MODELS["nano-banana"]

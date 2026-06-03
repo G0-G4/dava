@@ -7,7 +7,7 @@ from dava.bot_controller import BotController
 from dava.config import Config
 from dava.db import Database
 from dava.logs import setup_logging
-from dava.weather_descriptor import WeatherDescriptor, logger
+from dava.weather_descriptor import WeatherDescriptor
 
 if __name__ == "__main__":
     setup_logging()
@@ -15,8 +15,9 @@ if __name__ == "__main__":
     async def main():
         config = Config()
         data_dir = Path(config.data_dir)
-        db = Database(data_dir / "bot.db", data_dir)
-        weather_descriptor = WeatherDescriptor(config)
+        db = Database(data_dir / "bot.db", data_dir, admin_ids=set(config.admin_chat_ids))
+        config.migrate_env_to_db(db)
+        weather_descriptor = WeatherDescriptor()
         updater = AvatarUpdater(config, db)
         bot = BotController(updater, weather_descriptor, config, db)
         updater.client = bot.client
@@ -26,4 +27,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Shutting down gracefully...")
+        logging.getLogger(__name__).info("Shutting down gracefully...")

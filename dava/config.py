@@ -1,11 +1,9 @@
+import json
 import logging
 import os
 from enum import Enum
-
 from dotenv import load_dotenv
-
-import json
-from typing import Dict, Any, get_type_hints
+from typing import get_type_hints
 
 logger = logging.getLogger(__name__)
 
@@ -20,148 +18,125 @@ class ImageGenerators(Enum):
     NANO_BANANA_2 = "nano-banana-2"
 
 
+SYSTEM_KEYS = frozenset({
+    "bot_token",
+    "api_id",
+    "api_hash",
+    "polza_api_key",
+    "cookies",
+    "admin_chat_ids",
+    "data_dir",
+})
+
+ADMIN_ONLY_KEYS = frozenset({
+    "image_generator",
+    "polza_model",
+    "style",
+    "image_cfg_scale",
+    "image_url",
+})
+
+USER_CONFIGURABLE_KEYS = frozenset({
+    "prompt_text",
+    "place",
+    "latitude",
+    "longitude",
+    "timezone",
+    "weather",
+    "holidays",
+})
+
+ALL_CONFIGURABLE_KEYS = ADMIN_ONLY_KEYS | USER_CONFIGURABLE_KEYS
+
+_TYPE_MAP = {
+    "image_generator": ImageGenerators,
+    "polza_model": str,
+    "style": Style,
+    "image_cfg_scale": float,
+    "image_url": str,
+    "prompt_text": str,
+    "place": str,
+    "latitude": float,
+    "longitude": float,
+    "timezone": str,
+    "weather": dict,
+    "holidays": dict,
+}
+
+
+def convert_value(key: str, raw: str):
+    type_fn = _TYPE_MAP.get(key, str)
+    if type_fn is dict:
+        return json.loads(raw)
+    if type_fn is Style:
+        return Style(raw)
+    if type_fn is ImageGenerators:
+        return ImageGenerators(raw)
+    return type_fn(raw)
+
+
 class Config:
 
     def __init__(self):
         load_dotenv()
-        self._hidden = {"bot_token", "api_id", "api_hash", "polza_api_key"}
-        self._config_store = {}
-        self.properties = [name for name, value in vars(Config).items() if isinstance(value, property)]
-        self.init_config()
+        self._hidden = {"bot_token", "api_id", "api_hash", "polza_api_key", "cookies"}
 
-    def init_config(self):
-        for p in self.properties:
-            getattr(self, p)
-
-    def _get_converter(self, name):
-        prop = getattr(type(self), name, None)
-        if prop and isinstance(prop, property):
-            try:
-                hints = get_type_hints(prop.fget)
-                return_type = hints.get("return")
-
-                type_map = {
-                    float: float,
-                    int: int,
-                    str: str,
-                    dict: json.loads,
-                    list: json.loads,
-                    Style: lambda x: Style(x),
-                    ImageGenerators: lambda x: ImageGenerators(x),
-                }
-                return type_map.get(return_type, str)
-            except Exception:
-                return str
-        return str
-
-    def __setitem__(self, key, value):
-        if key in self.properties:
-            self._config_store[key] = self._get_converter(key)(value)
-            return
-        self._config_store[key] = value
-
-    def __delitem__(self, key):
-        if key in self._config_store:
-            del self._config_store[key]
-            if key in self.properties:
-                getattr(self, key)
-
-    def _get_variable(self, name: str, required=True) -> Any:
-        env_variable = os.getenv(name)
-        if required and name not in self._config_store and env_variable is None:
+    def _get_variable(self, name: str, required=True) -> str | None:
+        value = os.getenv(name)
+        if required and value is None:
             raise RuntimeError(f"required variable {name} not set")
-        if name in self._config_store:
-            return self._config_store[name]
-        converted = self._get_converter(name)(env_variable) if env_variable is not None else None
-        self._config_store[name] = converted
-        return converted
-
-    def all_variables(self) -> Dict[str, Any]:
-        return {k: v for k, v in self._config_store.items() if k not in self._hidden}
+        return value
 
     @property
-    def bot_token(self):
+    def bot_token(self) -> str:
         return self._get_variable("bot_token")
 
     @property
-    def prompt_text(self):
-        return self._get_variable("prompt_text")
-
-    @property
-    def image_dir(self):
-        return self._get_variable("image_dir")
-
-    @property
-    def data_dir(self):
-        return self._get_variable("data_dir", required=False) or "data"
-
-    @property
-    def cookies(self):
-        return self._get_variable("cookies")
-
-    @property
-    def api_id(self):
+    def api_id(self) -> str:
         return self._get_variable("api_id")
 
     @property
-    def api_hash(self):
+    def api_hash(self) -> str:
         return self._get_variable("api_hash")
 
     @property
-    def latitude(self) -> float:
-        return self._get_variable("latitude")
+    def polza_api_key(self) -> str:
+        return self._get_variable("polza_api_key")
 
     @property
-    def longitude(self) -> float:
-        return self._get_variable("longitude")
-
-    @property
-    def timezone(self):
-        return self._get_variable("timezone")
-
-    @property
-    def place(self):
-        return self._get_variable("place")
+    def cookies(self) -> str:
+        return self._get_variable("cookies")
 
     @property
     def admin_chat_ids(self) -> list[int]:
-        raw = self._get_variable("admin_chat_ids", required=False)
-        if not raw:
-            return []
-        return [int(x.strip()) for x in str(raw).split(",") if x.strip()]
+        raw = self._get_variable("admin_chat_ids", required=False) or ""
+        return [int(x.strip()) for x in raw.split(",") if x.strip()]
 
     @property
-    def previous_prompt_text(self):
-        return self._get_variable("previous_prompt_text", required=False)
+    def data_dir(self) -> str:
+        return self._get_variable("data_dir", required=False) or "data"
 
-    @property
-    def weather(self) -> dict:
-        return self._get_variable("weather", required=False)
+    def system_info(self) -> dict:
+        return {
+            k: v for k, v in {
+                "bot_token": self.bot_token,
+                "api_id": self.api_id,
+                "api_hash": self.api_hash,
+                "polza_api_key": self.polza_api_key,
+                "cookies": self.cookies,
+                "admin_chat_ids": self.admin_chat_ids,
+                "data_dir": self.data_dir,
+            }.items()
+            if k not in self._hidden
+        }
 
-    @property
-    def image_url(self):
-        return self._get_variable("image_url", required=False)
-
-    @property
-    def image_cfg_scale(self) -> float:
-        return self._get_variable("image_cfg_scale", required=True)
-
-    @property
-    def style(self) -> Style:
-        return self._get_variable("style", required=False)
-
-    @property
-    def image_generator(self) -> ImageGenerators:
-        return self._get_variable("image_generator", required=False)
-
-    @property
-    def holidays(self) -> dict:
-        return self._get_variable("holidays", required=False)
-
-    @property
-    def polza_api_key(self):
-        return self._get_variable("polza_api_key", required=False)
-
-    @property
-    def polza_model(self):
-        return self._get_variable("polza_model", required=False)
+    def migrate_env_to_db(self, db):
+        for key in ALL_CONFIGURABLE_KEYS:
+            raw = os.getenv(key)
+            if raw is not None:
+                try:
+                    value = convert_value(key, raw)
+                    db.set_global_default(key, value, skip_if_exists=True)
+                    logger.info(f"Migrated .env key '{key}' to global_config")
+                except Exception as e:
+                    logger.warning(f"Failed to migrate .env key '{key}': {e}")
