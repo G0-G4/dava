@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from dava.config import Config, Style, ImageGenerators, VideoGenerators, convert_value, SYSTEM_KEYS, ADMIN_ONLY_KEYS, USER_CONFIGURABLE_KEYS, EXTREME_WEATHER_CODES, DEFAULT_VIDEO_ACTIONS, DEFAULT_VIDEO_PROMPT_TEXT, DEFAULTS
+from dava.config import Config, Style, ImageGenerators, VideoGenerators, convert_value, SYSTEM_KEYS, ADMIN_ONLY_KEYS, USER_CONFIGURABLE_KEYS
 
 
 class TestConvertValue:
@@ -27,6 +27,23 @@ class TestConvertValue:
     def test_unknown_key_defaults_to_str(self):
         assert convert_value("unknown_key", "42") == "42"
 
+    def test_convert_value_video_generator(self):
+        result = convert_value("video_generator", "google/veo3_fast")
+        assert result == VideoGenerators.VEO3_FAST
+
+    def test_convert_value_video_mode(self):
+        assert convert_value("video_mode", "auto") == "auto"
+
+    def test_convert_value_video_actions(self):
+        raw = json.dumps({"weather": {"95": "lightning"}})
+        result = convert_value("video_actions", raw)
+        assert result == {"weather": {"95": "lightning"}}
+
+    def test_convert_value_extreme_weather_codes(self):
+        raw = json.dumps([55, 65, 95])
+        result = convert_value("extreme_weather_codes", raw)
+        assert result == [55, 65, 95]
+
 
 class TestEnums:
     def test_style_values(self):
@@ -47,11 +64,15 @@ class TestKeyCategories:
     def test_admin_only_keys(self):
         assert "image_generator" in ADMIN_ONLY_KEYS
         assert "style" in ADMIN_ONLY_KEYS
+        assert "extreme_weather_codes" in ADMIN_ONLY_KEYS
 
     def test_user_configurable_keys(self):
         assert "place" in USER_CONFIGURABLE_KEYS
         assert "prompt_text" in USER_CONFIGURABLE_KEYS
         assert "latitude" in USER_CONFIGURABLE_KEYS
+        assert "video_mode" in USER_CONFIGURABLE_KEYS
+        assert "video_actions" in USER_CONFIGURABLE_KEYS
+        assert "video_prompt_text" in USER_CONFIGURABLE_KEYS
 
     def test_keys_disjoint(self):
         assert SYSTEM_KEYS.isdisjoint(USER_CONFIGURABLE_KEYS)
@@ -97,139 +118,3 @@ class TestConfig:
         with patch.dict(os.environ, {"data_dir": "/tmp/custom"}, clear=False):
             cfg = Config()
             assert cfg.data_dir == "/tmp/custom"
-
-    def test_migrate_env_to_db(self):
-        mock_db = MagicMock()
-        with patch.dict(os.environ, {"place": "Moscow", "latitude": "55.75"}, clear=False):
-            cfg = Config()
-            cfg.migrate_env_to_db(mock_db)
-            calls = mock_db.set_global_default.call_args_list
-            keys_called = {c[0][0] for c in calls}
-            assert "place" in keys_called
-            assert "latitude" in keys_called
-
-    def test_migrate_env_to_db_skip_if_exists(self):
-        mock_db = MagicMock()
-        with patch.dict(os.environ, {"place": "Moscow"}, clear=False):
-            cfg = Config()
-            cfg.migrate_env_to_db(mock_db)
-            for call in mock_db.set_global_default.call_args_list:
-                assert call[1].get("skip_if_exists", False) is True
-
-
-class TestVideoGenerators:
-    def test_veo3_fast_value(self):
-        assert VideoGenerators.VEO3_FAST.value == "google/veo3_fast"
-
-    def test_video_generator_in_admin_keys(self):
-        assert "video_generator" in ADMIN_ONLY_KEYS
-
-    def test_video_mode_in_user_keys(self):
-        assert "video_mode" in USER_CONFIGURABLE_KEYS
-
-    def test_video_actions_in_user_keys(self):
-        assert "video_actions" in USER_CONFIGURABLE_KEYS
-
-    def test_video_prompt_text_in_user_keys(self):
-        assert "video_prompt_text" in USER_CONFIGURABLE_KEYS
-
-
-class TestExtremeWeatherCodes:
-    def test_contains_thunderstorm(self):
-        assert 95 in EXTREME_WEATHER_CODES
-
-    def test_contains_heavy_rain(self):
-        assert 65 in EXTREME_WEATHER_CODES
-
-    def test_contains_heavy_snow(self):
-        assert 75 in EXTREME_WEATHER_CODES
-
-    def test_does_not_contain_clear(self):
-        assert 0 not in EXTREME_WEATHER_CODES
-
-    def test_does_not_contain_light_rain(self):
-        assert 61 not in EXTREME_WEATHER_CODES
-
-
-class TestDefaultVideoActions:
-    def test_has_weather_section(self):
-        assert "weather" in DEFAULT_VIDEO_ACTIONS
-
-    def test_has_holidays_section(self):
-        assert "holidays" in DEFAULT_VIDEO_ACTIONS
-
-    def test_thunderstorm_has_action(self):
-        assert "95" in DEFAULT_VIDEO_ACTIONS["weather"]
-
-    def test_friday_13th_has_action(self):
-        assert "friday the 13th" in DEFAULT_VIDEO_ACTIONS["holidays"]
-
-    def test_convert_value_video_generator(self):
-        result = convert_value("video_generator", "google/veo3_fast")
-        assert result == VideoGenerators.VEO3_FAST
-
-    def test_convert_value_video_mode(self):
-        assert convert_value("video_mode", "auto") == "auto"
-
-    def test_convert_value_video_actions(self):
-        raw = json.dumps({"weather": {"95": "lightning"}})
-        result = convert_value("video_actions", raw)
-        assert result == {"weather": {"95": "lightning"}}
-
-    def test_convert_value_extreme_weather_codes(self):
-        raw = json.dumps([55, 65, 95])
-        result = convert_value("extreme_weather_codes", raw)
-        assert result == [55, 65, 95]
-
-
-class TestExtremeWeatherCodesAdminKey:
-    def test_extreme_weather_codes_in_admin_keys(self):
-        assert "extreme_weather_codes" in ADMIN_ONLY_KEYS
-
-
-class TestDefaults:
-    def test_defaults_has_video_actions(self):
-        assert "video_actions" in DEFAULTS
-        assert DEFAULTS["video_actions"] == DEFAULT_VIDEO_ACTIONS
-
-    def test_defaults_has_video_prompt_text(self):
-        assert "video_prompt_text" in DEFAULTS
-        assert DEFAULTS["video_prompt_text"] == DEFAULT_VIDEO_PROMPT_TEXT
-
-    def test_defaults_has_extreme_weather_codes(self):
-        assert "extreme_weather_codes" in DEFAULTS
-        assert DEFAULTS["extreme_weather_codes"] == sorted(EXTREME_WEATHER_CODES)
-
-    def test_defaults_extreme_weather_codes_is_sorted_list(self):
-        codes = DEFAULTS["extreme_weather_codes"]
-        assert codes == sorted(codes)
-        assert isinstance(codes, list)
-
-
-class TestMigrateDefaultsToDb:
-    def test_seeds_defaults(self, tmp_path):
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        from dava.db import Database
-        db = Database(str(data_dir / "test.db"), str(data_dir), admin_ids={111})
-        cfg = Config()
-        cfg.migrate_defaults_to_db(db)
-
-        assert db.get_global_default("video_actions") == DEFAULT_VIDEO_ACTIONS
-        assert db.get_global_default("video_prompt_text") == DEFAULT_VIDEO_PROMPT_TEXT
-        assert db.get_global_default("extreme_weather_codes") == sorted(EXTREME_WEATHER_CODES)
-        db._conn.close()
-
-    def test_skip_if_exists(self, tmp_path):
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        from dava.db import Database
-        db = Database(str(data_dir / "test.db"), str(data_dir), admin_ids={111})
-        custom_actions = {"weather": {"95": "custom action"}}
-        db.set_global_default("video_actions", custom_actions)
-
-        cfg = Config()
-        cfg.migrate_defaults_to_db(db)
-
-        assert db.get_global_default("video_actions") == custom_actions
-        db._conn.close()

@@ -18,7 +18,7 @@ def tmp_data_dir(tmp_path):
 @pytest.fixture
 def db(tmp_data_dir):
     db_path = tmp_data_dir / "test.db"
-    database = Database(str(db_path), str(tmp_data_dir), admin_ids={111, 222})
+    database = Database(str(db_path), str(tmp_data_dir), admin_ids={111, 222}, auto_create=True)
     yield database
     database._conn.close()
 

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Database:
-    def __init__(self, db_path: str | Path, data_dir: str | Path, admin_ids: set[int] | None = None):
+    def __init__(self, db_path: str | Path, data_dir: str | Path, admin_ids: set[int] | None = None, auto_create: bool = False):
         self._db_path = Path(db_path)
         self._data_dir = Path(data_dir)
         self._admin_ids: set[int] = admin_ids or set()
@@ -17,7 +17,8 @@ class Database:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
-        self._create_tables()
+        if auto_create:
+            self._create_tables()
         self._data_dir.mkdir(parents=True, exist_ok=True)
         (self._data_dir / "users").mkdir(parents=True, exist_ok=True)
 

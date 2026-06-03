@@ -9,7 +9,7 @@ from dava.db import Database
 class TestDatabaseInit:
     def test_creates_tables(self, tmp_data_dir):
         db_path = tmp_data_dir / "test.db"
-        db = Database(str(db_path), str(tmp_data_dir))
+        db = Database(str(db_path), str(tmp_data_dir), auto_create=True)
         cursor = db._conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
@@ -22,10 +22,19 @@ class TestDatabaseInit:
         data_dir = tmp_path / "new_data"
         data_dir.mkdir()
         db_path = data_dir / "test.db"
-        db = Database(str(db_path), str(data_dir))
+        db = Database(str(db_path), str(data_dir), auto_create=True)
         assert data_dir.exists()
         assert (data_dir / "users").exists()
         db._conn.close()
+
+    def test_no_auto_create(self, tmp_data_dir):
+        db_path = tmp_data_dir / "test.db"
+        db = Database(str(db_path), str(tmp_data_dir), auto_create=False)
+        cursor = db._conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = {row[0] for row in cursor.fetchall()}
+        db._conn.close()
+        assert "users" not in tables
 
 
 class TestUserManagement:

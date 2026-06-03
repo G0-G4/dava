@@ -11,7 +11,7 @@ from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava.avatar_updater import AvatarUpdater
-from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, VideoGenerators, DEFAULT_VIDEO_ACTIONS, DEFAULT_VIDEO_PROMPT_TEXT, EXTREME_WEATHER_CODES, convert_value
+from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, VideoGenerators, convert_value
 from dava.db import Database
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
@@ -685,7 +685,7 @@ class BotController:
 
         extreme_codes = self._get_admin_value("extreme_weather_codes")
         if extreme_codes is None:
-            extreme_codes = sorted(EXTREME_WEATHER_CODES)
+            extreme_codes = []
         elif isinstance(extreme_codes, str):
             import json as _json
             extreme_codes = _json.loads(extreme_codes)
@@ -703,13 +703,13 @@ class BotController:
     async def _prepare_video_prompt(self, user_id: int, weather: dict | None, weather_code: str | None) -> str:
         place = self._get_effective_value(user_id, "place") or ""
         holidays = self._get_effective_value(user_id, "holidays")
-        prompt_template = self._get_effective_value(user_id, "video_prompt_text") or DEFAULT_VIDEO_PROMPT_TEXT
+        prompt_template = self._get_effective_value(user_id, "video_prompt_text") or "Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"
 
         if weather is None:
             weather = await self._get_weather(user_id) or {}
         holiday = self.holiday_checker.get_today_holiday(holidays)
 
-        video_actions = self._get_effective_value(user_id, "video_actions") or DEFAULT_VIDEO_ACTIONS
+        video_actions = self._get_effective_value(user_id, "video_actions") or {}
         if isinstance(video_actions, str):
             import json as _json
             video_actions = _json.loads(video_actions)
@@ -721,9 +721,6 @@ class BotController:
         if not action and weather_code:
             weather_actions = video_actions.get("weather", {})
             action = weather_actions.get(weather_code, "")
-
-        if not prompt_template:
-            prompt_template = DEFAULT_VIDEO_PROMPT_TEXT
 
         weather = {**weather, "place": place, "action": action}
         if holiday:

@@ -3,7 +3,6 @@ import logging
 import os
 from enum import Enum
 from dotenv import load_dotenv
-from typing import get_type_hints
 
 logger = logging.getLogger(__name__)
 
@@ -77,52 +76,6 @@ _TYPE_MAP = {
     "extreme_weather_codes": dict,
 }
 
-DEFAULT_VIDEO_PROMPT_TEXT = "Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"
-
-EXTREME_WEATHER_CODES = frozenset({
-    55, 57, 65, 66, 67,
-    71, 73, 75, 77,
-    82, 86,
-    95, 96, 99,
-})
-
-DEFAULT_VIDEO_ACTIONS = {
-    "weather": {
-        "55": "thick drizzle falling steadily, rain streaks across the frame",
-        "57": "intense freezing drizzle, ice forming on surfaces, shivering",
-        "65": "torrential rain pouring in sheets, rapid splashing in puddles",
-        "66": "freezing rain coating surfaces with ice, ice crackling",
-        "67": "heavy freezing rain, ice accumulating, dramatic ice formations",
-        "71": "gentle snowfall, snowflakes drifting softly in the air",
-        "73": "moderate snowfall, snowflakes swirling in the wind",
-        "75": "heavy snowfall with large flakes swirling in the wind, blizzard-like",
-        "77": "snow grains scattering in the wind, icy particles dancing",
-        "82": "violent rain showers, water splashing intensely, dramatic downpour",
-        "86": "snow blowing sideways in gusty wind, wintry squall",
-        "95": "dramatic lightning flash illuminating the scene, thunder rumble, wind howling",
-        "96": "thunderstorm with hail stones bouncing off surfaces",
-        "99": "intense thunderstorm with large hail, violent wind gusts, dramatic lightning",
-    },
-    "holidays": {
-        "New Year's Day": "fireworks exploding in colorful bursts, confetti drifting down, festive lights twinkling",
-        "Christmas Day": "twinkling Christmas lights, gentle snow falling, warm candlelight flickering",
-        "Orthodox Christmas Day": "candle flame flickering softly, golden church bells, snow drifting gently",
-        "Defender of the Fatherland Day": "military bands marching, flags waving in the wind",
-        "International Women's Day": "flowers gently swaying, soft petals falling, warm spring light",
-        "Spring and Labour Day": "cherry blossoms fluttering in a gentle breeze, bright sunshine",
-        "Victory Day": "fireworks bursting over a city skyline, flags waving solemnly",
-        "Russia Day": "flag waving proudly, fireworks lighting up the sky",
-        "Unity Day": "warm candlelight glowing, autumn leaves swirling gently",
-        "friday the 13th": "eerie fog rolling across the frame, candle flame flickering, shadows creeping along walls",
-    },
-}
-
-DEFAULTS = {
-    "video_actions": DEFAULT_VIDEO_ACTIONS,
-    "video_prompt_text": DEFAULT_VIDEO_PROMPT_TEXT,
-    "extreme_weather_codes": sorted(EXTREME_WEATHER_CODES),
-}
-
 
 def convert_value(key: str, raw: str):
     type_fn = _TYPE_MAP.get(key, str)
@@ -189,19 +142,3 @@ class Config:
             }.items()
             if k not in self._hidden
         }
-
-    def migrate_env_to_db(self, db):
-        for key in ALL_CONFIGURABLE_KEYS:
-            raw = os.getenv(key)
-            if raw is not None:
-                try:
-                    value = convert_value(key, raw)
-                    db.set_global_default(key, value, skip_if_exists=True)
-                    logger.info(f"Migrated .env key '{key}' to global_config")
-                except Exception as e:
-                    logger.warning(f"Failed to migrate .env key '{key}': {e}")
-
-    def migrate_defaults_to_db(self, db):
-        for key, value in DEFAULTS.items():
-            db.set_global_default(key, value, skip_if_exists=True)
-            logger.info(f"Seeded default for '{key}' to global_config")

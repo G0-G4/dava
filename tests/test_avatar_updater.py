@@ -15,7 +15,7 @@ from dava.db import Database
 def avatar_updater(tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    db = Database(str(data_dir / "test.db"), str(data_dir), admin_ids={111})
+    db = Database(str(data_dir / "test.db"), str(data_dir), admin_ids={111}, auto_create=True)
     config = MagicMock()
     config.bot_token = "test-token"
     updater = AvatarUpdater(config=config, db=db)

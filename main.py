@@ -16,8 +16,6 @@ if __name__ == "__main__":
         config = Config()
         data_dir = Path(config.data_dir)
         db = Database(data_dir / "bot.db", data_dir, admin_ids=set(config.admin_chat_ids))
-        config.migrate_env_to_db(db)
-        config.migrate_defaults_to_db(db)
         weather_descriptor = WeatherDescriptor()
         updater = AvatarUpdater(config, db)
         bot = BotController(updater, weather_descriptor, config, db)
