@@ -39,11 +39,6 @@ class TestConvertValue:
         result = convert_value("video_actions", raw)
         assert result == {"weather": {"95": "lightning"}}
 
-    def test_convert_value_extreme_weather_codes(self):
-        raw = json.dumps([55, 65, 95])
-        result = convert_value("extreme_weather_codes", raw)
-        assert result == [55, 65, 95]
-
 
 class TestEnums:
     def test_style_values(self):
@@ -64,7 +59,6 @@ class TestKeyCategories:
     def test_admin_only_keys(self):
         assert "image_generator" in ADMIN_ONLY_KEYS
         assert "style" in ADMIN_ONLY_KEYS
-        assert "extreme_weather_codes" in ADMIN_ONLY_KEYS
 
     def test_user_configurable_keys(self):
         assert "place" in USER_CONFIGURABLE_KEYS

@@ -38,7 +38,6 @@ ADMIN_ONLY_KEYS = frozenset({
     "image_cfg_scale",
     "image_url",
     "video_generator",
-    "extreme_weather_codes",
 })
 
 USER_CONFIGURABLE_KEYS = frozenset({
@@ -73,7 +72,6 @@ _TYPE_MAP = {
     "video_mode": str,
     "video_actions": dict,
     "video_prompt_text": str,
-    "extreme_weather_codes": dict,
 }
 
 

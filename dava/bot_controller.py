@@ -677,26 +677,23 @@ class BotController:
         if video_mode == "never":
             return False, None
 
+        video_actions = self._get_effective_value(user_id, "video_actions") or {}
+        if isinstance(video_actions, str):
+            import json as _json
+            video_actions = _json.loads(video_actions)
+
         holidays = self._get_effective_value(user_id, "holidays")
         holiday = self.holiday_checker.get_today_holiday(holidays)
 
-        if holiday:
+        holiday_actions = video_actions.get("holidays", {})
+        if holiday and holiday in holiday_actions:
             return True, str(weather.get("weather_code", "")) if weather else None
 
-        extreme_codes = self._get_admin_value("extreme_weather_codes")
-        if extreme_codes is None:
-            extreme_codes = []
-        elif isinstance(extreme_codes, str):
-            import json as _json
-            extreme_codes = _json.loads(extreme_codes)
-
+        weather_actions = video_actions.get("weather", {})
         if weather:
             weather_code = str(weather.get("weather_code", ""))
-            try:
-                if int(weather_code) in extreme_codes:
-                    return True, weather_code
-            except (ValueError, TypeError):
-                pass
+            if weather_code in weather_actions:
+                return True, weather_code
 
         return False, str(weather.get("weather_code", "")) if weather else None
 
