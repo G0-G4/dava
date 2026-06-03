@@ -11,7 +11,7 @@ from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava.avatar_updater import AvatarUpdater
-from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, VideoGenerators, EXTREME_WEATHER_CODES, DEFAULT_VIDEO_ACTIONS, DEFAULT_VIDEO_PROMPT_TEXT, convert_value
+from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, VideoGenerators, DEFAULT_VIDEO_ACTIONS, DEFAULT_VIDEO_PROMPT_TEXT, EXTREME_WEATHER_CODES, convert_value
 from dava.db import Database
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
@@ -683,10 +683,17 @@ class BotController:
         if holiday:
             return True, str(weather.get("weather_code", "")) if weather else None
 
+        extreme_codes = self._get_admin_value("extreme_weather_codes")
+        if extreme_codes is None:
+            extreme_codes = sorted(EXTREME_WEATHER_CODES)
+        elif isinstance(extreme_codes, str):
+            import json as _json
+            extreme_codes = _json.loads(extreme_codes)
+
         if weather:
             weather_code = str(weather.get("weather_code", ""))
             try:
-                if int(weather_code) in EXTREME_WEATHER_CODES:
+                if int(weather_code) in extreme_codes:
                     return True, weather_code
             except (ValueError, TypeError):
                 pass
@@ -696,7 +703,7 @@ class BotController:
     async def _prepare_video_prompt(self, user_id: int, weather: dict | None, weather_code: str | None) -> str:
         place = self._get_effective_value(user_id, "place") or ""
         holidays = self._get_effective_value(user_id, "holidays")
-        prompt_template = self._get_effective_value(user_id, "video_prompt_text")
+        prompt_template = self._get_effective_value(user_id, "video_prompt_text") or DEFAULT_VIDEO_PROMPT_TEXT
 
         if weather is None:
             weather = await self._get_weather(user_id) or {}

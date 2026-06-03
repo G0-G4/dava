@@ -39,6 +39,7 @@ ADMIN_ONLY_KEYS = frozenset({
     "image_cfg_scale",
     "image_url",
     "video_generator",
+    "extreme_weather_codes",
 })
 
 USER_CONFIGURABLE_KEYS = frozenset({
@@ -73,6 +74,7 @@ _TYPE_MAP = {
     "video_mode": str,
     "video_actions": dict,
     "video_prompt_text": str,
+    "extreme_weather_codes": dict,
 }
 
 DEFAULT_VIDEO_PROMPT_TEXT = "Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"
@@ -81,7 +83,7 @@ EXTREME_WEATHER_CODES = frozenset({
     55, 57, 65, 66, 67,
     71, 73, 75, 77,
     82, 86,
-    95, 96, 99
+    95, 96, 99,
 })
 
 DEFAULT_VIDEO_ACTIONS = {
@@ -113,6 +115,12 @@ DEFAULT_VIDEO_ACTIONS = {
         "Unity Day": "warm candlelight glowing, autumn leaves swirling gently",
         "friday the 13th": "eerie fog rolling across the frame, candle flame flickering, shadows creeping along walls",
     },
+}
+
+DEFAULTS = {
+    "video_actions": DEFAULT_VIDEO_ACTIONS,
+    "video_prompt_text": DEFAULT_VIDEO_PROMPT_TEXT,
+    "extreme_weather_codes": sorted(EXTREME_WEATHER_CODES),
 }
 
 
@@ -192,3 +200,8 @@ class Config:
                     logger.info(f"Migrated .env key '{key}' to global_config")
                 except Exception as e:
                     logger.warning(f"Failed to migrate .env key '{key}': {e}")
+
+    def migrate_defaults_to_db(self, db):
+        for key, value in DEFAULTS.items():
+            db.set_global_default(key, value, skip_if_exists=True)
+            logger.info(f"Seeded default for '{key}' to global_config")

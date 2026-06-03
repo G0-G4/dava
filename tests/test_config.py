@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from dava.config import Config, Style, ImageGenerators, VideoGenerators, convert_value, SYSTEM_KEYS, ADMIN_ONLY_KEYS, USER_CONFIGURABLE_KEYS, EXTREME_WEATHER_CODES, DEFAULT_VIDEO_ACTIONS
+from dava.config import Config, Style, ImageGenerators, VideoGenerators, convert_value, SYSTEM_KEYS, ADMIN_ONLY_KEYS, USER_CONFIGURABLE_KEYS, EXTREME_WEATHER_CODES, DEFAULT_VIDEO_ACTIONS, DEFAULT_VIDEO_PROMPT_TEXT, DEFAULTS
 
 
 class TestConvertValue:
@@ -175,3 +175,61 @@ class TestDefaultVideoActions:
         raw = json.dumps({"weather": {"95": "lightning"}})
         result = convert_value("video_actions", raw)
         assert result == {"weather": {"95": "lightning"}}
+
+    def test_convert_value_extreme_weather_codes(self):
+        raw = json.dumps([55, 65, 95])
+        result = convert_value("extreme_weather_codes", raw)
+        assert result == [55, 65, 95]
+
+
+class TestExtremeWeatherCodesAdminKey:
+    def test_extreme_weather_codes_in_admin_keys(self):
+        assert "extreme_weather_codes" in ADMIN_ONLY_KEYS
+
+
+class TestDefaults:
+    def test_defaults_has_video_actions(self):
+        assert "video_actions" in DEFAULTS
+        assert DEFAULTS["video_actions"] == DEFAULT_VIDEO_ACTIONS
+
+    def test_defaults_has_video_prompt_text(self):
+        assert "video_prompt_text" in DEFAULTS
+        assert DEFAULTS["video_prompt_text"] == DEFAULT_VIDEO_PROMPT_TEXT
+
+    def test_defaults_has_extreme_weather_codes(self):
+        assert "extreme_weather_codes" in DEFAULTS
+        assert DEFAULTS["extreme_weather_codes"] == sorted(EXTREME_WEATHER_CODES)
+
+    def test_defaults_extreme_weather_codes_is_sorted_list(self):
+        codes = DEFAULTS["extreme_weather_codes"]
+        assert codes == sorted(codes)
+        assert isinstance(codes, list)
+
+
+class TestMigrateDefaultsToDb:
+    def test_seeds_defaults(self, tmp_path):
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        from dava.db import Database
+        db = Database(str(data_dir / "test.db"), str(data_dir), admin_ids={111})
+        cfg = Config()
+        cfg.migrate_defaults_to_db(db)
+
+        assert db.get_global_default("video_actions") == DEFAULT_VIDEO_ACTIONS
+        assert db.get_global_default("video_prompt_text") == DEFAULT_VIDEO_PROMPT_TEXT
+        assert db.get_global_default("extreme_weather_codes") == sorted(EXTREME_WEATHER_CODES)
+        db._conn.close()
+
+    def test_skip_if_exists(self, tmp_path):
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        from dava.db import Database
+        db = Database(str(data_dir / "test.db"), str(data_dir), admin_ids={111})
+        custom_actions = {"weather": {"95": "custom action"}}
+        db.set_global_default("video_actions", custom_actions)
+
+        cfg = Config()
+        cfg.migrate_defaults_to_db(db)
+
+        assert db.get_global_default("video_actions") == custom_actions
+        db._conn.close()
