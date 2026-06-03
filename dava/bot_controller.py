@@ -487,15 +487,9 @@ class BotController:
             logger.info(f"Job already running for user {user_id}")
             return "Update already in progress for you"
         prompt = await self._prepare_prompt(user_id)
-        previous_prompt = self._get_effective_value(user_id, "previous_prompt_text")
-        if previous_prompt == prompt:
-            message = "Prompt hasn't changed, no update needed"
-            logger.info(f"User {user_id}: {message}")
-            return message
         try:
             self._running_jobs.add(user_id)
             await self.updater.async_update_avatar(prompt, user_id)
-            self.db.save_user_config(user_id, "previous_prompt_text", prompt)
             logger.info(f"User {user_id}: Avatar updated!")
             return "✅ Avatar updated!"
         except Exception as e:

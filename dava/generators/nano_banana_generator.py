@@ -2,7 +2,6 @@ import asyncio
 import base64
 import json
 import logging
-from io import BytesIO
 from pathlib import Path
 
 import aiohttp
@@ -97,7 +96,7 @@ class NanoBananaGenerator(ImageGenerator):
 
         raise RequestError(f"Media generation timed out after {timeout}s")
 
-    async def generate_and_save_image(self, prompt: str, base_image_path: str) -> str:
+    async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
         image_b64 = self._encode_image(base_image_path)
 
         payload = {
@@ -124,7 +123,8 @@ class NanoBananaGenerator(ImageGenerator):
         else:
             raise RequestError(f"Unexpected initial status: {status}, response: {response}")
 
-        save_path = Path(base_image_path).parent / "new_avatar.jpg"
+        save_path = Path(output_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as resp:
                 if resp.status != 200:

@@ -40,12 +40,23 @@ class AvatarUpdater:
         base_image_path = self.db.get_base_image_path(user_id)
         if not base_image_path:
             raise RuntimeError("Base image path not found in database.")
-        img = await get_image_generator(self.config).generate_and_save_image(prompt, base_image_path)
+
+        cache_hash = self.db.compute_cache_hash(user_id, prompt)
+        cached = self.db.check_cache(user_id, cache_hash)
+        if cached:
+            logger.info(f"User {user_id}: Cache hit, using cached image {cached}")
+            img_path = cached
+        else:
+            logger.info(f"User {user_id}: Cache miss, generating new image")
+            output_path = str(self.db.get_cache_path(user_id, cache_hash))
+            img_path = await get_image_generator(self.config).generate_and_save_image(
+                prompt, base_image_path, output_path
+            )
 
         logger.debug("deleting old avatar via Bot API")
         await self._delete_avatar(connection_id)
         logger.debug("uploading new avatar")
-        file = await self.client.upload_file(img)
+        file = await self.client.upload_file(img_path)
         await self.client(UploadProfilePhotoRequest(
             bot=InputUser(user_id=tg_user_id, access_hash=0),
             file=file,

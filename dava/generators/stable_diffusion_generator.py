@@ -103,7 +103,7 @@ class StableDiffusionGenerator(ImageGenerator):
 
         raise RequestError("Image generation timed out")
 
-    async def generate_and_save_image(self, prompt: str, base_image_path: str) -> str:
+    async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
         image_url = self._config.image_url
         if not image_url:
             image_url = await self._get_image_url(prompt, base_image_path)
@@ -112,7 +112,8 @@ class StableDiffusionGenerator(ImageGenerator):
                 if response.status != 200:
                     raise RequestError(f"Image download failed: {response.status}")
 
-                save_path = Path(base_image_path).parent / "new_avatar.jpg"
+                save_path = Path(output_path)
+                save_path.parent.mkdir(parents=True, exist_ok=True)
 
                 img = await response.read()
                 image = Image.open(BytesIO(img))

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -23,7 +24,7 @@ class Database:
         (self._data_dir / "users").mkdir(parents=True, exist_ok=True)
 
     def _load_admin_ids_from_env(self) -> set[int]:
-        env_value = os.getenv("ADMIN_CHAT_IDS", "")
+        env_value = os.getenv("admin_chat_ids", "")
         ids = set()
         if env_value:
             for id_str in env_value.split(","):
@@ -225,3 +226,25 @@ class Database:
 
     def save_schedule(self, user_id: int, times: list):
         self.save_user_config(user_id, "schedule", times)
+
+    # -- Cache --
+
+    def compute_cache_hash(self, user_id: int, prompt: str) -> str:
+        base_image_path = self.get_base_image_path(user_id)
+        if not base_image_path:
+            raise RuntimeError(f"No base image found for user {user_id}")
+        image_bytes = Path(base_image_path).read_bytes()
+        digest = hashlib.sha256(image_bytes + prompt.encode()).hexdigest()
+        return digest
+
+    def get_cache_path(self, user_id: int, cache_hash: str) -> Path:
+        user_dir = self._data_dir / "users" / str(user_id)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        return user_dir / f"{cache_hash}.jpg"
+
+    def check_cache(self, user_id: int, cache_hash: str) -> str | None:
+        path = self.get_cache_path(user_id, cache_hash)
+        if path.exists():
+            logger.info(f"Cache hit for user {user_id}: {cache_hash}")
+            return str(path)
+        return None
