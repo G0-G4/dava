@@ -76,6 +76,17 @@ class BotController:
             await event.respond("⛔ Access not granted. Please contact the admin to get access.")
             raise RuntimeError(f"Unauthorized user {event.chat_id} tried to use bot")
 
+    async def _send_long(self, event, title: str, value):
+        if not isinstance(value, str):
+            value = json.dumps(value, ensure_ascii=False, indent=2)
+        text = f"**{title}**:\n```\n{value}\n```"
+        if len(text) <= 4096:
+            await event.respond(text, parse_mode="markdown")
+        else:
+            chunks = [text[i:i + 4096] for i in range(0, len(text), 4096)]
+            for chunk in chunks:
+                await event.respond(chunk, parse_mode="markdown")
+
     def _get_effective_value(self, user_id: int, key: str):
         return self.db.get_effective_value(user_id, key)
 
@@ -146,6 +157,30 @@ class BotController:
                 var_name = event.data.decode().split("-")[1]
                 self.db.delete_global_default(var_name)
                 await event.respond(f"✅ Global default {var_name} has been deleted")
+            elif event.data.startswith(b"settings-admin-"):
+                var_name = event.data.decode().split("-", 2)[2]
+                global_config = self.db.list_global_defaults()
+                val = global_config.get(var_name, "(not set)")
+                await self._send_long(event, f"🔒 {var_name}", val)
+            elif event.data.startswith(b"settings-user-"):
+                var_name = event.data.decode().split("-", 2)[2]
+                user_config = self.db.load_user_config(user_id)
+                global_config = self.db.list_global_defaults()
+                if var_name in user_config:
+                    source = "your override"
+                    val = user_config[var_name]
+                elif var_name in global_config:
+                    source = "default"
+                    val = global_config[var_name]
+                else:
+                    source = ""
+                    val = "(not set)"
+                await self._send_long(event, f"👤 {var_name} ({source})", val)
+            elif event.data.startswith(b"settings-custom-"):
+                var_name = event.data.decode().split("-", 2)[2]
+                user_config = self.db.load_user_config(user_id)
+                val = user_config.get(var_name, "(not set)")
+                await self._send_long(event, f"🔸 {var_name}", val)
             elif event.data.startswith(b"deletetime-"):
                 time_str = event.data.decode().split("-")[1]
                 schedule = self.db.load_schedule(user_id)
@@ -212,35 +247,39 @@ class BotController:
             user_id = event.chat_id
             user_config = self.db.load_user_config(user_id)
             global_config = self.db.list_global_defaults()
-            lines = []
+            is_admin = user_id in self._config.admin_chat_ids
+            buttons = []
 
-            admin_lines = []
-            for key in sorted(ADMIN_ONLY_KEYS):
-                val = global_config.get(key)
-                if val is not None:
-                    admin_lines.append(f"⚙️ {key}: `{val}`")
+            if is_admin:
+                for key in sorted(ADMIN_ONLY_KEYS):
+                    indicator = " ✅" if key in global_config else " (not set)"
+                    buttons.append([KeyboardButtonCallback(
+                        text=f"🔒 {key}{indicator}",
+                        data=f"settings-admin-{key}".encode(),
+                    )])
 
-            user_lines = []
             for key in sorted(USER_CONFIGURABLE_KEYS):
-                if key in user_config and key != "schedule":
-                    user_lines.append(f"🔹 {key}: `{user_config[key]}` (your override)")
+                if key == "schedule":
+                    continue
+                if key in user_config:
+                    indicator = " (your override)"
                 elif key in global_config:
-                    user_lines.append(f"🔹 {key}: `{global_config[key]}` (default)")
+                    indicator = " (default)"
+                else:
+                    indicator = " (not set)"
+                buttons.append([KeyboardButtonCallback(
+                    text=f"👤 {key}{indicator}",
+                    data=f"settings-user-{key}".encode(),
+                )])
 
-            if admin_lines:
-                lines.append("⚙️ Admin-only settings:")
-                lines.extend(admin_lines)
-            if user_lines:
-                lines.append("")
-                lines.append("👤 Your settings:")
-                lines.extend(user_lines)
-            for k, v in user_config.items():
+            for k in sorted(user_config):
                 if k not in USER_CONFIGURABLE_KEYS and k not in ADMIN_ONLY_KEYS and k != "schedule":
-                    lines.append(f"🔸 {k}: `{v}`")
-            await event.respond(
-                "\n".join(lines),
-                parse_mode="markdown",
-            )
+                    buttons.append([KeyboardButtonCallback(
+                        text=f"🔸 {k} (custom)",
+                        data=f"settings-custom-{k}".encode(),
+                    )])
+
+            await event.respond("Select a setting to view:", buttons=buttons)
 
         @self.client.on(events.NewMessage(pattern="/set_variable"))
         async def set_variable(event):
