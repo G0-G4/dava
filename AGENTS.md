@@ -37,7 +37,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
 ## Key Conventions & Gotchas
 
 - Config is **tiered**: system keys (env-only), admin-only keys, user-configurable keys. User config resolves as: user override → global default → env fallback
-- Config defaults (video_actions, video_prompt_text) are **seeded via migration** `002_seed_video_defaults.py`, not hardcoded in `config.py`. Bot code uses inline fallbacks for crash-safety if DB values are missing
+- Config defaults (video_actions, video_prompt_text) are **seeded via migration** `002_seed_video_defaults.py`, not hardcoded in `config.py`. Bot code uses inline fallbacks for crash-safety if DB values are missing. Migration `004_update_video_prompt_default.py` conditionally replaces the old long video prompt default with the short action-only default (`{action}`) only for users who still have the exact historical string.
 - `.env` values are no longer migrated to DB; migration `003_seed_app_defaults.py` seeds hardcoded defaults
 - `Config` is synchronous (reads env vars on property access), not a dataclass
 - `Database` is **synchronous** (`sqlite3`), despite being used inside async handlers. No async DB driver.
@@ -54,6 +54,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
 - `ImageGenerators.NANO_BANANA_2` is the **default** when no generator is configured (see `generators/__init__.py`)
 - Stable Diffusion generator crops top 4% of generated image (lines 124-125 in `stable_diffusion_generator.py`)
 - Scheduler cron times are stored in UTC but user inputs are local times — potential timezone mismatch
+- For video avatars, a contextual static reference image is first ensured (via the normal static prompt + image cache or generation). This reference image bytes (not the user's raw base avatar) are used both as input to the video generator (Veo `REFERENCE_2_VIDEO`) and for the video cache hash via `compute_cache_hash(..., reference_image_path=...)`. The user's base image is still required (identity guard in `async_update_video_avatar`). Video cache key = reference bytes + video prompt + "video". `compute_cache_hash` accepts an optional `reference_image_path` kwarg (falls back to base avatar when omitted for backward compat).
 
 ## Testing
 

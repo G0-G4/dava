@@ -11,8 +11,9 @@ from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava.avatar_updater import AvatarUpdater
-from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, Style, VideoGenerators, convert_value
+from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, VideoGenerators, convert_value
 from dava.db import Database
+from dava.generators import get_image_generator
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
 from dava.weather_descriptor import WeatherDescriptor
@@ -652,7 +653,26 @@ class BotController:
             weather = await self._get_weather(user_id)
             use_video, weather_code = await self._should_generate_video(weather, user_id)
             if use_video:
-                prompt = await self._prepare_video_prompt(user_id, weather, weather_code)
+                ref_prompt = await self._prepare_prompt(user_id, weather)
+                image_params = self._resolve_image_params(user_id)
+                ref_cache_hash = self.db.compute_cache_hash(user_id, ref_prompt, mode="image")
+                ref_cached = self.db.check_cache(user_id, ref_cache_hash, mode="image")
+                if ref_cached:
+                    ref_image_path = ref_cached
+                else:
+                    ref_output_path = str(self.db.get_cache_path(user_id, ref_cache_hash, mode="image"))
+                    img_generator = get_image_generator(
+                        self._config,
+                        image_generator=image_params["image_generator"],
+                        polza_model=image_params["polza_model"],
+                        style=image_params["style"],
+                        image_cfg_scale=image_params["image_cfg_scale"],
+                        image_url=image_params["image_url"],
+                    )
+                    ref_image_path = await img_generator.generate_and_save_image(
+                        ref_prompt, self.db.get_base_image_path(user_id), ref_output_path
+                    )
+                video_prompt = await self._prepare_video_prompt(user_id, weather, weather_code)
                 video_gen = self._get_admin_value("video_generator")
                 if isinstance(video_gen, str):
                     try:
@@ -660,7 +680,7 @@ class BotController:
                     except ValueError:
                         video_gen = None
                 await self.updater.async_update_video_avatar(
-                    prompt, user_id, video_generator=video_gen,
+                    video_prompt, user_id, video_generator=video_gen, reference_image_path=ref_image_path,
                 )
                 logger.info(f"User {user_id}: Video avatar updated!")
                 return "✅ Video avatar updated!"
@@ -739,7 +759,7 @@ class BotController:
     async def _prepare_video_prompt(self, user_id: int, weather: dict | None, weather_code: str | None) -> str:
         place = self._get_effective_value(user_id, "place") or ""
         holidays = self._get_effective_value(user_id, "holidays")
-        prompt_template = self._get_effective_value(user_id, "video_prompt_text") or "Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"
+        prompt_template = self._get_effective_value(user_id, "video_prompt_text") or "{action}"
 
         if weather is None:
             weather = await self._get_weather(user_id) or {}

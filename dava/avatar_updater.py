@@ -88,6 +88,7 @@ class AvatarUpdater:
         prompt: str,
         user_id: int,
         video_generator: VideoGenerators | str | None = None,
+        reference_image_path: str | None = None,
     ):
         connection = self.db.load_connection(user_id)
         if not connection:
@@ -107,11 +108,11 @@ class AvatarUpdater:
         connection_id = connection["connection_id"]
         tg_user_id = connection["user_id"]
 
-        base_image_path = self.db.get_base_image_path(user_id)
-        if not base_image_path:
-            raise RuntimeError("Base image path not found in database.")
+        ref_path = reference_image_path or self.db.get_base_image_path(user_id)
+        if not ref_path:
+            raise RuntimeError("Reference image path not found.")
 
-        cache_hash = self.db.compute_cache_hash(user_id, prompt, mode="video")
+        cache_hash = self.db.compute_cache_hash(user_id, prompt, mode="video", reference_image_path=ref_path)
         cached = self.db.check_cache(user_id, cache_hash, mode="video")
         if cached:
             logger.info(f"User {user_id}: Cache hit, using cached video {cached}")
@@ -121,7 +122,7 @@ class AvatarUpdater:
             output_path = str(self.db.get_cache_path(user_id, cache_hash, mode="video"))
             generator = get_video_generator(self.config, video_generator=video_generator)
             video_path = await generator.generate_and_save_video(
-                prompt, base_image_path, output_path
+                prompt, ref_path, output_path
             )
 
         video_path = await self._prepare_video(video_path)

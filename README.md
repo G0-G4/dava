@@ -73,7 +73,7 @@ Video settings are seeded with sensible defaults in the database and can be conf
 |---------|-----------|------|-------------|
 | Video mode | `video_mode` | `auto` or `never` | `auto` generates video on triggers; `never` disables it. Default: `auto` |
 | Video actions | `video_actions` | dict | Maps weather codes and holiday names to action descriptions for the prompt |
-| Video prompt | `video_prompt_text` | string | Template for video prompts. Default: `"Animated portrait of a person centered in frame, {action}, {detailed_description}, {lighting_description}, {place}"` |
+| Video prompt | `video_prompt_text` | string | Template for video prompts (primarily action/motion). A contextual reference image (generated or cached from the normal static prompt) is passed to the video model and used for the video cache key. Default: `"{action}"` |
 
 Use the `/video_mode` bot command to toggle video generation on/off.
 
@@ -98,4 +98,4 @@ uv run main.py
 
 Instead of logging into your personal Telegram account, the bot uses **Secretary Mode** (Chat Automation). When you connect the bot to your profile via Settings > Chat Automation, the bot receives a `business_connection_id` with the `edit_profile_photo` right. This allows the bot to update your profile photo directly through the Telegram API — no full account access needed.
 
-For video avatars, the bot generates a 9:16 video via Veo 3.1 Fast, then uses `ffmpeg` to center-crop it to 1:1, truncate to 3 seconds, and strip audio. Telegram requires both a static frame (JPG) and the video file to set a video profile photo.
+For video avatars, the bot first ensures a contextual static reference image (using the normal image prompt + image cache, or generating if needed). This reference (not the raw base avatar) is passed to Veo 3.1 Fast as `REFERENCE_2_VIDEO` input and is also used for the video cache key (so different weather/holiday conditions produce different cache entries even with the same action text). The bot then generates a 9:16 video, uses `ffmpeg` to center-crop it to 1:1, truncate to 3 seconds, and strip audio. Telegram requires both a static frame (JPG) and the video file to set a video profile photo. `video_prompt_text` now focuses on action/motion; scene details come from the reference image.

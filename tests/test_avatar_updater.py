@@ -84,6 +84,52 @@ class TestAvatarUpdaterCache:
                 mock_generator.generate_and_save_image.assert_called_once()
 
 
+class TestVideoAvatarCache:
+    async def test_video_cache_hit_with_reference_does_not_call_generator(self, avatar_updater_with_client):
+        updater = avatar_updater_with_client
+        _setup_user_with_image(updater)
+
+        user_dir = updater.db._data_dir / "users" / "1"
+        ref_path = user_dir / "ref.jpg"
+        ref_path.write_bytes(b"reference image bytes")
+
+        cache_hash = updater.db.compute_cache_hash(1, "video prompt", mode="video", reference_image_path=str(ref_path))
+        cache_path = updater.db.get_cache_path(1, cache_hash, mode="video")
+        cache_path.write_bytes(b"cached video data")
+
+        mock_generator = AsyncMock()
+        with patch("dava.avatar_updater.get_video_generator", return_value=mock_generator):
+            with patch.object(updater, "_prepare_video", new_callable=AsyncMock) as mock_prepare:
+                mock_prepare.return_value = str(cache_path)
+                with patch.object(updater, "_extract_first_frame", new_callable=AsyncMock) as mock_extract:
+                    mock_extract.return_value = str(user_dir / "frame.jpg")
+                    with patch.object(updater, "_delete_avatar", new_callable=AsyncMock):
+                        await updater.async_update_video_avatar("video prompt", user_id=1, reference_image_path=str(ref_path))
+                        mock_generator.generate_and_save_video.assert_not_called()
+
+    async def test_video_cache_miss_calls_generator_with_reference(self, avatar_updater_with_client):
+        updater = avatar_updater_with_client
+        _setup_user_with_image(updater)
+
+        user_dir = updater.db._data_dir / "users" / "1"
+        ref_path = user_dir / "ref.jpg"
+        ref_path.write_bytes(b"reference image bytes")
+
+        mock_generator = AsyncMock()
+        mock_generator.generate_and_save_video = AsyncMock(return_value=str(user_dir / "gen.mp4"))
+
+        with patch("dava.avatar_updater.get_video_generator", return_value=mock_generator):
+            with patch.object(updater, "_prepare_video", new_callable=AsyncMock) as mock_prepare:
+                mock_prepare.return_value = str(user_dir / "gen.mp4")
+                with patch.object(updater, "_extract_first_frame", new_callable=AsyncMock) as mock_extract:
+                    mock_extract.return_value = str(user_dir / "frame.jpg")
+                    with patch.object(updater, "_delete_avatar", new_callable=AsyncMock):
+                        await updater.async_update_video_avatar("unique video prompt", user_id=1, reference_image_path=str(ref_path))
+                        mock_generator.generate_and_save_video.assert_called_once()
+                        args, _ = mock_generator.generate_and_save_video.call_args
+                        assert args[1] == str(ref_path)
+
+
 class TestDeleteAvatar:
     async def test_delete_avatar_success(self, avatar_updater_with_client):
         from aiohttp import web

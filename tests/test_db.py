@@ -277,6 +277,43 @@ class TestCache:
         with pytest.raises(RuntimeError, match="No base image"):
             db.compute_cache_hash(999, "prompt")
 
+    def test_compute_cache_hash_with_reference_image_path(self, db, tmp_data_dir):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(b"reference image data")
+            ref = Path(f.name)
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(b"base image data")
+            base = Path(f.name)
+        try:
+            db.ensure_user(1)
+            db.save_base_image(1, base)
+            h1 = db.compute_cache_hash(1, "test prompt", mode="video", reference_image_path=str(ref))
+            h2 = db.compute_cache_hash(1, "test prompt", mode="video", reference_image_path=str(ref))
+            assert h1 == h2
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+                f.write(b"different reference")
+                ref2 = Path(f.name)
+            try:
+                h3 = db.compute_cache_hash(1, "test prompt", mode="video", reference_image_path=str(ref2))
+                assert h1 != h3
+            finally:
+                ref2.unlink(missing_ok=True)
+        finally:
+            ref.unlink(missing_ok=True)
+            base.unlink(missing_ok=True)
+
+    def test_compute_cache_hash_reference_path_does_not_require_base(self, db, tmp_data_dir):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(b"reference only")
+            ref = Path(f.name)
+        try:
+            h = db.compute_cache_hash(999, "prompt", mode="video", reference_image_path=str(ref))
+            assert isinstance(h, str) and len(h) == 64
+        finally:
+            ref.unlink(missing_ok=True)
+
     def test_check_cache_miss(self, db):
         assert db.check_cache(1, "nonexistent_hash") is None
 

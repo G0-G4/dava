@@ -258,11 +258,14 @@ class Database:
 
     # -- Cache --
 
-    def compute_cache_hash(self, user_id: int, prompt: str, mode: str = "image") -> str:
-        base_image_path = self.get_base_image_path(user_id)
-        if not base_image_path:
-            raise RuntimeError(f"No base image found for user {user_id}")
-        image_bytes = Path(base_image_path).read_bytes()
+    def compute_cache_hash(self, user_id: int, prompt: str, mode: str = "image", *, reference_image_path: str | None = None) -> str:
+        if reference_image_path:
+            image_bytes = Path(reference_image_path).read_bytes()
+        else:
+            base_image_path = self.get_base_image_path(user_id)
+            if not base_image_path:
+                raise RuntimeError(f"No base image found for user {user_id}")
+            image_bytes = Path(base_image_path).read_bytes()
         digest = hashlib.sha256(image_bytes + prompt.encode() + mode.encode()).hexdigest()
         return digest
 
