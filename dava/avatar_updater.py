@@ -31,6 +31,8 @@ class AvatarUpdater:
         style: Style | str | None = None,
         image_cfg_scale: float | None = None,
         image_url: str | None = None,
+        hermes_auth_path: str | None = None,
+        hermes_xai_image_model: str | None = None,
     ):
         connection = self.db.load_connection(user_id)
         if not connection:
@@ -69,6 +71,8 @@ class AvatarUpdater:
                 style=style,
                 image_cfg_scale=image_cfg_scale,
                 image_url=image_url,
+                hermes_auth_path=hermes_auth_path,
+                hermes_xai_image_model=hermes_xai_image_model,
             )
             img_path = await generator.generate_and_save_image(
                 prompt, base_image_path, output_path
@@ -89,6 +93,8 @@ class AvatarUpdater:
         user_id: int,
         video_generator: VideoGenerators | str | None = None,
         reference_image_path: str | None = None,
+        hermes_auth_path: str | None = None,
+        hermes_xai_video_model: str | None = None,
     ):
         connection = self.db.load_connection(user_id)
         if not connection:
@@ -120,7 +126,12 @@ class AvatarUpdater:
         else:
             logger.info(f"User {user_id}: Cache miss, generating new video")
             output_path = str(self.db.get_cache_path(user_id, cache_hash, mode="video"))
-            generator = get_video_generator(self.config, video_generator=video_generator)
+            generator = get_video_generator(
+                self.config,
+                video_generator=video_generator,
+                hermes_auth_path=hermes_auth_path,
+                hermes_xai_video_model=hermes_xai_video_model,
+            )
             video_path = await generator.generate_and_save_video(
                 prompt, ref_path, output_path
             )

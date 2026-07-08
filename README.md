@@ -57,6 +57,7 @@ polza_api_key=your_polza_api_key
 | Stable Diffusion | `stable-diffusion` | SD-XL | Uses stablediffusionweb.com (requires `cookies`) |
 | Nano Banana | `nano-banana` | `google/gemini-2.5-flash-image` | Uses Polza.ai API (requires `polza_api_key`) |
 | Nano Banana 2 | `nano-banana-2` | `google/gemini-3.1-flash-image-preview` | Polza.ai, 4K support (requires `polza_api_key`) |
+| Hermes / xAI Grok | `hermes` | Real xAI Grok Imagine (via Hermes OAuth token) | Calls https://api.x.ai directly using the token from `~/.hermes/auth.json`. Best way to get native Grok models + reference images. |
 
 You can also override the Polza model by setting `polza_model` to any model ID supported by Polza.ai (e.g. `google/gemini-2.5-flash-image`).
 
@@ -99,3 +100,34 @@ uv run main.py
 Instead of logging into your personal Telegram account, the bot uses **Secretary Mode** (Chat Automation). When you connect the bot to your profile via Settings > Chat Automation, the bot receives a `business_connection_id` with the `edit_profile_photo` right. This allows the bot to update your profile photo directly through the Telegram API — no full account access needed.
 
 For video avatars, the bot first ensures a contextual static reference image (using the normal image prompt + image cache, or generating if needed). This reference (not the raw base avatar) is passed to Veo 3.1 Fast as `REFERENCE_2_VIDEO` input and is also used for the video cache key (so different weather/holiday conditions produce different cache entries even with the same action text). The bot then generates a 9:16 video, uses `ffmpeg` to center-crop it to 1:1, truncate to 3 seconds, and strip audio. Telegram requires both a static frame (JPG) and the video file to set a video profile photo. `video_prompt_text` now focuses on action/motion; scene details come from the reference image.
+## Hermes / xAI Grok generator (recommended for Grok models)
+
+Set `image_generator=hermes` and/or `video_generator=hermes` to use **real xAI Grok Imagine endpoints** (`api.x.ai/v1/images/...` and video) authenticated with the OAuth token that Hermes already obtained for you.
+
+**How it works**
+- You log in once with `hermes model` (choose "xAI Grok OAuth") or `hermes auth add xai-oauth`.
+- Hermes stores the token in `~/.hermes/auth.json`.
+- dava reads that token and calls the **official xAI endpoints directly** (no subprocess, no FAL, native Grok models).
+- Reference image is sent for consistent identity (uses `/images/edits` and image-to-video).
+
+Advantages:
+- You get Grok models (grok-imagine-image-quality etc.) instead of whatever FAL model Hermes happened to pick.
+- No cross-venv headaches.
+- Same login you already use for Hermes.
+
+Configuration (admin / global_config):
+- `hermes_auth_path` — optional override for the auth.json location
+- `hermes_xai_image_model` — e.g. `grok-imagine-image-quality`
+- `hermes_xai_video_model` — e.g. `grok-imagine-video-1.5-preview`
+
+Example (via bot commands or DB):
+```
+image_generator=hermes
+video_generator=hermes
+hermes_xai_image_model=grok-imagine-image-quality
+```
+
+The bot will automatically pick up the token from the standard Hermes location. 
+
+If you see auth errors, re-run the login flow in Hermes (`hermes auth add xai-oauth`).
+```
