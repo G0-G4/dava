@@ -29,7 +29,7 @@ class TestConvertValue:
 
     def test_convert_value_video_generator(self):
         result = convert_value("video_generator", "google/veo3_fast")
-        assert result == VideoGenerators.VEO3_FAST
+        assert result == "google/veo3_fast"
 
     def test_convert_value_video_mode(self):
         assert convert_value("video_mode", "auto") == "auto"

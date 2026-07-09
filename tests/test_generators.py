@@ -100,3 +100,48 @@ class TestVideoGeneratorABC:
         assert hasattr(VideoGenerator, 'generate_and_save_video')
         import inspect
         assert inspect.iscoroutinefunction(VideoGenerator.generate_and_save_video)
+    def test_hermes(self):
+        mock_config = MagicMock()
+        result = get_image_generator(mock_config, image_generator=ImageGenerators.HERMES)
+        from dava.generators.hermes_image_generator import HermesImageGenerator
+        assert isinstance(result, HermesImageGenerator)
+
+    def test_hermes_with_overrides(self):
+        mock_config = MagicMock()
+        result = get_image_generator(
+            mock_config,
+            image_generator=ImageGenerators.HERMES,
+            hermes_auth_path="/tmp/fake-auth.json",
+            hermes_xai_image_model="grok-imagine-image",
+        )
+        from dava.generators.hermes_image_generator import HermesImageGenerator
+        assert isinstance(result, HermesImageGenerator)
+        assert result._auth_path == "/tmp/fake-auth.json"
+        assert result._model == "grok-imagine-image"
+
+
+class TestGetVideoGeneratorHermes:
+    def test_hermes(self):
+        mock_config = MagicMock()
+        result = get_video_generator(mock_config, video_generator=VideoGenerators.HERMES)
+        from dava.generators.hermes_video_generator import HermesVideoGenerator
+        assert isinstance(result, HermesVideoGenerator)
+
+    def test_hermes_string(self):
+        mock_config = MagicMock()
+        result = get_video_generator(mock_config, video_generator="hermes")
+        from dava.generators.hermes_video_generator import HermesVideoGenerator
+        assert isinstance(result, HermesVideoGenerator)
+
+    def test_hermes_video_with_overrides(self):
+        mock_config = MagicMock()
+        result = get_video_generator(
+            mock_config,
+            video_generator=VideoGenerators.HERMES,
+            hermes_auth_path="/tmp/fake.json",
+            hermes_xai_video_model="grok-imagine-video-1.5-preview",
+        )
+        from dava.generators.hermes_video_generator import HermesVideoGenerator
+        assert isinstance(result, HermesVideoGenerator)
+        assert result._auth_path == "/tmp/fake.json"
+        assert result._model == "grok-imagine-video-1.5-preview"

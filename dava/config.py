@@ -15,10 +15,12 @@ class ImageGenerators(Enum):
     STABLE_DIFFUSION = "stable-diffusion"
     NANO_BANANA = "nano-banana"
     NANO_BANANA_2 = "nano-banana-2"
+    HERMES = "hermes"
 
 
 class VideoGenerators(Enum):
     VEO3_FAST = "google/veo3_fast"
+    HERMES = "hermes"
 
 
 SYSTEM_KEYS = frozenset({
@@ -38,6 +40,9 @@ ADMIN_ONLY_KEYS = frozenset({
     "image_cfg_scale",
     "image_url",
     "video_generator",
+    "hermes_auth_path",
+    "hermes_xai_image_model",
+    "hermes_xai_video_model",
 })
 
 USER_CONFIGURABLE_KEYS = frozenset({
@@ -62,6 +67,9 @@ _TYPE_MAP = {
     "image_cfg_scale": float,
     "image_url": str,
     "video_generator": VideoGenerators,
+    "hermes_auth_path": str,
+    "hermes_xai_image_model": str,
+    "hermes_xai_video_model": str,
     "prompt_text": str,
     "place": str,
     "latitude": float,
@@ -77,11 +85,18 @@ _TYPE_MAP = {
 
 def convert_value(key: str, raw: str):
     type_fn = _TYPE_MAP.get(key, str)
+    # If already an enum (e.g. from internal calls), return its value for JSON safety
+    if isinstance(raw, ImageGenerators):
+        return raw.value
+    if isinstance(raw, VideoGenerators):
+        return raw.value
     if type_fn is dict:
         return json.loads(raw)
     if type_fn is Style:
         return raw
     if type_fn is ImageGenerators:
+        return raw
+    if type_fn is VideoGenerators:
         return raw
     return type_fn(raw)
 

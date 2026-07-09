@@ -2,6 +2,9 @@ from dava.config import Config, ImageGenerators, Style, VideoGenerators
 from dava.generators.nano_banana_generator import NanoBananaGenerator
 from dava.generators.stable_diffusion_generator import StableDiffusionGenerator
 from dava.generators.veo_generator import VeoGenerator
+from dava.generators.hermes_image_generator import HermesImageGenerator
+from dava.generators.hermes_video_generator import HermesVideoGenerator
+from dava.generators.video_generator import VideoGenerator
 
 
 def get_image_generator(
@@ -11,6 +14,8 @@ def get_image_generator(
     style: Style | str | None = None,
     image_cfg_scale: float | None = None,
     image_url: str | None = None,
+    hermes_auth_path: str | None = None,
+    hermes_xai_image_model: str | None = None,
 ):
     if image_generator is None:
         image_generator = ImageGenerators.NANO_BANANA_2
@@ -20,6 +25,13 @@ def get_image_generator(
             style = Style(style)
         except ValueError:
             style = None
+
+    # Build hermes config overrides (passed down from admin values)
+    hermes_overrides = {}
+    if hermes_auth_path:
+        hermes_overrides["hermes_auth_path"] = hermes_auth_path
+    if hermes_xai_image_model:
+        hermes_overrides["hermes_xai_image_model"] = hermes_xai_image_model
 
     generator_map = {
         ImageGenerators.STABLE_DIFFUSION: StableDiffusionGenerator(
@@ -38,6 +50,7 @@ def get_image_generator(
             polza_model=polza_model,
             image_generator=image_generator,
         ),
+        ImageGenerators.HERMES: HermesImageGenerator(config, **hermes_overrides),
     }
     return generator_map.get(image_generator, StableDiffusionGenerator(
         config,
@@ -50,9 +63,21 @@ def get_image_generator(
 def get_video_generator(
     config: Config,
     video_generator: VideoGenerators | str | None = None,
-) -> VeoGenerator:
+    hermes_auth_path: str | None = None,
+    hermes_xai_video_model: str | None = None,
+) -> VideoGenerator:
     if video_generator is None:
         video_generator = VideoGenerators.VEO3_FAST
     if isinstance(video_generator, VideoGenerators):
         video_generator = video_generator.value
+
+    if str(video_generator).lower() == "hermes":
+        overrides = {}
+        if hermes_auth_path:
+            overrides["hermes_auth_path"] = hermes_auth_path
+        if hermes_xai_video_model:
+            overrides["hermes_xai_video_model"] = hermes_xai_video_model
+        return HermesVideoGenerator(config, **overrides)
+
+    # default to Veo
     return VeoGenerator(config, model=video_generator)

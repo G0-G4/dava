@@ -633,6 +633,9 @@ class BotController:
             "style": self._get_admin_value("style"),
             "image_cfg_scale": self._get_admin_value("image_cfg_scale"),
             "image_url": self._get_admin_value("image_url"),
+            # Hermes / xAI via Hermes token
+            "hermes_auth_path": self._get_admin_value("hermes_auth_path"),
+            "hermes_xai_image_model": self._get_admin_value("hermes_xai_image_model"),
         }
 
     async def _update_avatar(self, user_id: int) -> str:
@@ -668,6 +671,8 @@ class BotController:
                         style=image_params["style"],
                         image_cfg_scale=image_params["image_cfg_scale"],
                         image_url=image_params["image_url"],
+                        hermes_auth_path=image_params.get("hermes_auth_path"),
+                        hermes_xai_image_model=image_params.get("hermes_xai_image_model"),
                     )
                     ref_image_path = await img_generator.generate_and_save_image(
                         ref_prompt, self.db.get_base_image_path(user_id), ref_output_path
@@ -680,7 +685,11 @@ class BotController:
                     except ValueError:
                         video_gen = None
                 await self.updater.async_update_video_avatar(
-                    video_prompt, user_id, video_generator=video_gen, reference_image_path=ref_image_path,
+                    video_prompt, user_id,
+                    video_generator=video_gen,
+                    reference_image_path=ref_image_path,
+                    hermes_auth_path=self._get_admin_value("hermes_auth_path"),
+                    hermes_xai_video_model=self._get_admin_value("hermes_xai_video_model"),
                 )
                 logger.info(f"User {user_id}: Video avatar updated!")
                 return "✅ Video avatar updated!"
