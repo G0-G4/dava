@@ -68,7 +68,7 @@ The bot can also generate **video profile photos** using Veo 3.1 Fast via the Po
 - **Holidays** — Russian public holidays and Friday the 13th
 - **Extreme weather** — thunderstorms, heavy rain/snow, hail, etc. (weather codes with actions in `video_actions.weather`)
 
-Video settings are seeded with sensible defaults in the database and can be configured via bot commands:
+Video settings are seeded with sensible defaults in the database and can be configured via the bot's interactive menu (recommended) or commands:
 
 | Setting | Config key | Type | Description |
 |---------|-----------|------|-------------|
@@ -76,7 +76,13 @@ Video settings are seeded with sensible defaults in the database and can be conf
 | Video actions | `video_actions` | dict | Maps weather codes and holiday names to action descriptions for the prompt |
 | Video prompt | `video_prompt_text` | string | Template for video prompts (primarily action/motion). A contextual reference image (generated or cached from the normal static prompt) is passed to the video model and used for the video cache key. Default: `"{action}"` |
 
-Use the `/video_mode` bot command to toggle video generation on/off.
+**Recommended**: Use **/settings** — it now shows a clean grouped summary of your current values and opens category menus (📍 Location, ✍️ Prompts, 🎥 Video, 📅 Schedule, 🌦️ Overrides, 👑 Admin). Far fewer buttons and values are visible immediately.
+
+For video actions you can also use the convenient helpers (no giant JSON paste required):
+- `/set_action weather|holiday <code> "action description here"`
+- `/delete_action weather|holiday <code>`
+
+Use the `/video_mode` bot command (or the toggle buttons inside /settings → 🎥 Video) to toggle video generation on/off.
 
 **System requirements**: `ffmpeg` must be installed — it's used to crop video from 9:16 to 1:1 and truncate to 3 seconds for Telegram compatibility.
 

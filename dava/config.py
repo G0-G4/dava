@@ -61,6 +61,22 @@ USER_CONFIGURABLE_KEYS = frozenset({
 
 ALL_CONFIGURABLE_KEYS = ADMIN_ONLY_KEYS | USER_CONFIGURABLE_KEYS
 
+# Category groupings for the interactive /settings menu (human-friendly, ordered).
+# These drive the hierarchical UI so we never present a giant flat list of buttons.
+USER_SETTING_CATEGORIES: dict[str, list[str]] = {
+    "📍 Location": ["place", "latitude", "longitude", "timezone"],
+    "✍️ Prompts": ["prompt_text"],
+    "🎥 Video": ["video_mode", "video_prompt_text", "video_actions"],
+    "🌦️ Overrides": ["weather", "holidays"],
+}
+
+# For admins: globals are shown in a dedicated category. Keep a parallel grouping.
+ADMIN_SETTING_CATEGORIES: dict[str, list[str]] = {
+    "🖼️ Image": ["image_generator", "polza_model", "style", "image_cfg_scale", "image_url"],
+    "🎬 Video Gen": ["video_generator", "hermes_xai_video_model"],
+    "🔐 Auth Paths": ["hermes_auth_path", "xai_auth_path", "hermes_xai_image_model"],
+}
+
 _TYPE_MAP = {
     "image_generator": ImageGenerators,
     "polza_model": str,

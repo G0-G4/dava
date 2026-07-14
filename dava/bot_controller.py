@@ -11,7 +11,17 @@ from telethon.tl import types as tl_types
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from dava.avatar_updater import AvatarUpdater
-from dava.config import Config, USER_CONFIGURABLE_KEYS, ADMIN_ONLY_KEYS, ALL_CONFIGURABLE_KEYS, ImageGenerators, VideoGenerators, convert_value
+from dava.config import (
+    Config,
+    USER_CONFIGURABLE_KEYS,
+    ADMIN_ONLY_KEYS,
+    ALL_CONFIGURABLE_KEYS,
+    USER_SETTING_CATEGORIES,
+    ADMIN_SETTING_CATEGORIES,
+    ImageGenerators,
+    VideoGenerators,
+    convert_value,
+)
 from dava.db import Database
 from dava.generators import get_image_generator
 from dava.holidays import HolidayChecker
@@ -93,6 +103,193 @@ class BotController:
 
     def _get_admin_value(self, key: str):
         return self.db.get_admin_value(key)
+
+    # --- New helpers for hierarchical settings UI ---
+
+    def _get_source_indicator(self, user_id: int, key: str, user_config: dict, global_config: dict) -> str:
+        if key in user_config:
+            return " (your override)"
+        if key in global_config:
+            return " (default)"
+        return ""
+
+    def _get_effective_display(self, user_id: int, key: str, truncate: int = 100) -> str:
+        """Return a short human-friendly representation of the effective value."""
+        val = self._get_effective_value(user_id, key)
+        if val is None:
+            return "(not set)"
+        if isinstance(val, dict):
+            try:
+                n = len(val)
+                # Special for video_actions
+                if key == "video_actions":
+                    w = len(val.get("weather", {}))
+                    h = len(val.get("holidays", {}))
+                    return f"dict ({w} weather + {h} holiday actions)"
+                return f"dict ({n} keys)"
+            except Exception:
+                return "dict"
+        if isinstance(val, (list, tuple)):
+            return f"list ({len(val)} items)"
+        s = str(val)
+        if len(s) > truncate:
+            return s[:truncate] + "…"
+        return s
+
+    def _build_settings_summary(self, user_id: int) -> str:
+        """Build a readable grouped summary of current effective settings."""
+        user_config = self.db.load_user_config(user_id)
+        global_config = self.db.list_global_defaults()
+        is_admin = user_id in self._config.admin_chat_ids
+
+        lines = ["**Current settings** (effective values):"]
+
+        for cat_name, keys in USER_SETTING_CATEGORIES.items():
+            lines.append(f"\n{cat_name}")
+            for k in keys:
+                if k == "schedule":
+                    continue
+                ind = self._get_source_indicator(user_id, k, user_config, global_config)
+                disp = self._get_effective_display(user_id, k)
+                lines.append(f"• {k}: {disp}{ind}")
+
+        # Show schedule separately (it's special)
+        schedule = self.db.load_schedule(user_id)
+        sched_disp = ", ".join(schedule) if schedule else "(none)"
+        lines.append(f"\n📅 Schedule: {sched_disp}")
+
+        # Custom keys (not in the known lists)
+        customs = [
+            k for k in user_config
+            if k not in USER_CONFIGURABLE_KEYS and k not in ADMIN_ONLY_KEYS and k != "schedule"
+        ]
+        if customs:
+            lines.append("\n🔸 Custom keys:")
+            for k in sorted(customs):
+                disp = self._get_effective_display(user_id, k)
+                lines.append(f"• {k}: {disp}")
+
+        if is_admin:
+            lines.append("\n👑 You are admin — use Admin category for globals.")
+
+        lines.append("\nTap a category below to view/edit.")
+        return "\n".join(lines)
+
+    def _build_main_category_buttons(self, is_admin: bool) -> list[list]:
+        """Top-level category buttons (never a long vertical wall)."""
+        buttons = []
+        row = []
+        for cat_name in USER_SETTING_CATEGORIES.keys():
+            row.append(KeyboardButtonCallback(
+                text=cat_name,
+                data=f"cat:{cat_name}".encode(),
+            ))
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+        if row:
+            buttons.append(row)
+
+        # Schedule as its own prominent button
+        buttons.append([KeyboardButtonCallback(text="📅 Schedule", data=b"cat:schedule")])
+
+        if is_admin:
+            buttons.append([KeyboardButtonCallback(text="👑 Admin / Globals", data=b"cat:globals")])
+
+        # Quick actions row
+        buttons.append([
+            KeyboardButtonCallback(text="🔄 Refresh", data=b"cat:refresh"),
+            KeyboardButtonCallback(text="❌ Close", data=b"cat:close"),
+        ])
+        return buttons
+
+    def _build_category_view_text_and_buttons(self, user_id: int, cat: str):
+        """Return (text, buttons) for a category submenu."""
+        user_config = self.db.load_user_config(user_id)
+        global_config = self.db.list_global_defaults()
+        is_admin = user_id in self._config.admin_chat_ids
+
+        text_lines = []
+        buttons: list[list] = []
+
+        if cat == "schedule":
+            schedule = self.db.load_schedule(user_id)
+            text_lines.append("**📅 Your update schedule** (UTC times)")
+            if schedule:
+                text_lines.append("Current: " + ", ".join(schedule))
+            else:
+                text_lines.append("No times set.")
+            text_lines.append("\nUse the buttons or /add_time /delete_time.")
+            for t in schedule:
+                buttons.append([KeyboardButtonCallback(text=f"🗑 {t}", data=f"deletetime-{t}".encode())])
+            buttons.append([KeyboardButtonCallback(text="➕ Add time (HH:MM)", data=b"addtime")])
+            buttons.append([KeyboardButtonCallback(text="« Back", data=b"back:main")])
+            return "\n".join(text_lines), buttons
+
+        if cat == "globals" and is_admin:
+            text_lines.append("**👑 Global defaults (affect all users)**")
+            for cat_name, keys in ADMIN_SETTING_CATEGORIES.items():
+                text_lines.append(f"\n{cat_name}")
+                for k in keys:
+                    val = global_config.get(k, "(not set)")
+                    short = str(val)[:70] + ("…" if len(str(val)) > 70 else "")
+                    text_lines.append(f"• {k}: {short}")
+                    buttons.append([KeyboardButtonCallback(
+                        text=f"✏️ {k}",
+                        data=f"setglobalvar-{k}".encode(),
+                    )])
+            buttons.append([KeyboardButtonCallback(text="« Back to main", data=b"back:main")])
+            return "\n".join(text_lines), buttons
+
+        # Regular user categories
+        keys = USER_SETTING_CATEGORIES.get(cat, [])
+        if not keys:
+            text_lines.append(f"Category: {cat}")
+        else:
+            text_lines.append(f"**{cat}** — tap Edit to change")
+            for k in keys:
+                ind = self._get_source_indicator(user_id, k, user_config, global_config)
+                disp = self._get_effective_display(user_id, k, truncate=80)
+                text_lines.append(f"• {k}{ind}: {disp}")
+
+                if k == "video_mode":
+                    # Special direct toggles
+                    buttons.append([
+                        KeyboardButtonCallback(text="✅ auto", data=b"toggle:video_mode:auto"),
+                        KeyboardButtonCallback(text="never", data=b"toggle:video_mode:never"),
+                    ])
+                else:
+                    edit_label = "✏️ Edit " + k
+                    if k in ("prompt_text", "video_prompt_text"):
+                        edit_label = "✏️ Edit prompt"
+                    buttons.append([KeyboardButtonCallback(text=edit_label, data=f"edit:{k}".encode())])
+
+                if k in ("prompt_text", "video_prompt_text"):
+                    buttons.append([KeyboardButtonCallback(
+                        text="👁 View full",
+                        data=f"settings-user-{k}".encode(),
+                    )])
+
+            if cat == "🎥 Video":
+                # Helpful note for complex actions
+                va = self._get_effective_value(user_id, "video_actions") or {}
+                if isinstance(va, str):
+                    try:
+                        import json as _j
+                        va = _j.loads(va)
+                    except Exception:
+                        va = {}
+                w = len(va.get("weather", {})) if isinstance(va, dict) else 0
+                h = len(va.get("holidays", {})) if isinstance(va, dict) else 0
+                text_lines.append(f"\nvideo_actions: {w} weather + {h} holiday entries")
+                text_lines.append("Tip: use /set_action weather|holiday CODE \"your action text\" for easy edits.")
+                buttons.append([KeyboardButtonCallback(
+                    text="✏️ Edit video_actions (full JSON)",
+                    data=b"edit:video_actions",
+                )])
+
+        buttons.append([KeyboardButtonCallback(text="« Back", data=b"back:main")])
+        return "\n".join(text_lines), buttons
 
     def _setup_handlers(self):
         @self.client.on(events.Raw(types=tl_types.UpdateBotBusinessConnect))
@@ -193,6 +390,74 @@ class BotController:
                 else:
                     await event.respond("⏰ Time not found in schedule")
 
+            # --- New hierarchical menu navigation & actions (cat:*, edit:*, toggle:*, back:*) ---
+            elif event.data.startswith(b"cat:"):
+                payload = event.data.decode()[4:]  # after "cat:"
+                try:
+                    await event.edit("⏳ Loading...")
+                except Exception:
+                    pass
+                if payload == "refresh":
+                    is_admin = user_id in self._config.admin_chat_ids
+                    summary = self._build_settings_summary(user_id)
+                    buttons = self._build_main_category_buttons(is_admin)
+                    try:
+                        await event.edit(summary, parse_mode="markdown", buttons=buttons)
+                    except Exception:
+                        await event.respond(summary, parse_mode="markdown", buttons=buttons)
+                    return
+                if payload == "close":
+                    try:
+                        await event.edit("Settings closed. Use /settings to reopen.")
+                    except Exception:
+                        await event.respond("Settings closed.")
+                    return
+                text, btns = self._build_category_view_text_and_buttons(user_id, payload)
+                try:
+                    await event.edit(text, parse_mode="markdown", buttons=btns)
+                except Exception:
+                    await event.respond(text, parse_mode="markdown", buttons=btns)
+
+            elif event.data.startswith(b"edit:"):
+                key = event.data.decode().split(":", 1)[1]
+                self._pending_var[user_id] = key
+                # Try to guide in the same message if possible
+                guide = f"✏️ Editing **{key}**\nCurrent effective value:\n```\n{self._get_effective_display(user_id, key, truncate=200)}\n```\n\nSend the new value now (multi-line OK for prompts). Type /cancel to abort."
+                try:
+                    await event.edit(guide, parse_mode="markdown")
+                except Exception:
+                    await event.respond(guide, parse_mode="markdown")
+
+            elif event.data.startswith(b"toggle:"):
+                # e.g. toggle:video_mode:auto
+                _, key, val = event.data.decode().split(":", 2)
+                if key == "video_mode" and val in ("auto", "never"):
+                    self.db.save_user_config(user_id, key, val)
+                    await event.respond(f"✅ video_mode set to {val}")
+                    # Optionally refresh the parent menu (best-effort)
+                    try:
+                        is_admin = user_id in self._config.admin_chat_ids
+                        summary = self._build_settings_summary(user_id)
+                        buttons = self._build_main_category_buttons(is_admin)
+                        # Can't easily know parent; just give quick re-open hint
+                    except Exception:
+                        pass
+                else:
+                    await event.respond("Unknown toggle.")
+
+            elif event.data.startswith(b"back:main"):
+                is_admin = user_id in self._config.admin_chat_ids
+                summary = self._build_settings_summary(user_id)
+                buttons = self._build_main_category_buttons(is_admin)
+                try:
+                    await event.edit(summary, parse_mode="markdown", buttons=buttons)
+                except Exception:
+                    await event.respond(summary, parse_mode="markdown", buttons=buttons)
+
+            elif event.data.startswith(b"addtime"):
+                self._pending_time.add(user_id)
+                await event.respond("Please send the new time in HH:MM format (UTC)")
+
         @self.client.on(events.NewMessage())
         async def handle_value_input(event):
             user_id = event.chat_id
@@ -242,45 +507,34 @@ class BotController:
             await self._check_allowed(event)
             await self._send_help(event)
 
+        @self.client.on(events.NewMessage(pattern="/cancel"))
+        async def cancel_pending(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            cleared = False
+            if user_id in self._pending_var:
+                self._pending_var.pop(user_id, None)
+                cleared = True
+            if user_id in self._pending_global_var:
+                self._pending_global_var.discard(user_id)
+                cleared = True
+            if user_id in self._pending_time:
+                self._pending_time.discard(user_id)
+                cleared = True
+            if user_id in self._pending_upload:
+                self._pending_upload.discard(user_id)
+                cleared = True
+            await event.respond("✅ Cancelled pending input." if cleared else "Nothing to cancel.")
+
         @self.client.on(events.NewMessage(pattern="/settings"))
         async def show_settings(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            user_config = self.db.load_user_config(user_id)
-            global_config = self.db.list_global_defaults()
             is_admin = user_id in self._config.admin_chat_ids
-            buttons = []
 
-            if is_admin:
-                for key in sorted(ADMIN_ONLY_KEYS):
-                    indicator = " ✅" if key in global_config else " (not set)"
-                    buttons.append([KeyboardButtonCallback(
-                        text=f"🔒 {key}{indicator}",
-                        data=f"settings-admin-{key}".encode(),
-                    )])
-
-            for key in sorted(USER_CONFIGURABLE_KEYS):
-                if key == "schedule":
-                    continue
-                if key in user_config:
-                    indicator = " (your override)"
-                elif key in global_config:
-                    indicator = " (default)"
-                else:
-                    indicator = " (not set)"
-                buttons.append([KeyboardButtonCallback(
-                    text=f"👤 {key}{indicator}",
-                    data=f"settings-user-{key}".encode(),
-                )])
-
-            for k in sorted(user_config):
-                if k not in USER_CONFIGURABLE_KEYS and k not in ADMIN_ONLY_KEYS and k != "schedule":
-                    buttons.append([KeyboardButtonCallback(
-                        text=f"🔸 {k} (custom)",
-                        data=f"settings-custom-{k}".encode(),
-                    )])
-
-            await event.respond("Select a setting to view:", buttons=buttons)
+            summary = self._build_settings_summary(user_id)
+            buttons = self._build_main_category_buttons(is_admin)
+            await event.respond(summary, parse_mode="markdown", buttons=buttons)
 
         @self.client.on(events.NewMessage(pattern="/set_variable"))
         async def set_variable(event):
@@ -295,16 +549,25 @@ class BotController:
                 self.db.save_user_config(user_id, name, val)
                 await event.respond(f"✅ {name} set to {val}")
             else:
+                # Compact version — prefer the rich /settings menu for most users.
                 user_config = self.db.load_user_config(user_id)
                 buttons = []
+                row = []
                 for var in sorted(USER_CONFIGURABLE_KEYS):
+                    if var == "schedule":
+                        continue
                     suffix = " (override)" if var in user_config else ""
-                    buttons.append([KeyboardButtonCallback(
+                    row.append(KeyboardButtonCallback(
                         text=f"{var}{suffix}",
                         data=f"setvar-{var}".encode(),
-                    )])
+                    ))
+                    if len(row) == 2:
+                        buttons.append(row)
+                        row = []
+                if row:
+                    buttons.append(row)
                 await event.respond(
-                    "Select variable to change:",
+                    "Select variable (or better: use /settings for the new menu). Direct syntax also works:\n/set_variable KEY value",
                     buttons=buttons,
                 )
 
@@ -471,6 +734,56 @@ class BotController:
                     parse_mode="markdown",
                 )
 
+        @self.client.on(events.NewMessage(pattern="/set_action"))
+        async def set_action(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            parts = event.text.split(maxsplit=3)
+            # /set_action <type> <code> <action...>
+            if len(parts) < 4 or parts[1] not in ("weather", "holiday"):
+                await event.respond(
+                    "Usage: /set_action <weather|holiday> <code_or_name> <action description>\n"
+                    "Example: /set_action weather 95 \"lightning flash, user flinches\""
+                )
+                return
+            action_type = parts[1]
+            key = parts[2]
+            action_text = parts[3]
+            try:
+                va = self._get_effective_value(user_id, "video_actions") or {}
+                if isinstance(va, str):
+                    va = json.loads(va)
+                if not isinstance(va, dict):
+                    va = {}
+                va.setdefault(action_type, {})[key] = action_text
+                self.db.save_user_config(user_id, "video_actions", va)
+                await event.respond(f"✅ Set {action_type}/{key} action.")
+            except Exception as e:
+                await event.respond(f"❌ Failed: {e}")
+
+        @self.client.on(events.NewMessage(pattern="/delete_action"))
+        async def delete_action(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            parts = event.text.split()
+            if len(parts) != 3 or parts[1] not in ("weather", "holiday"):
+                await event.respond("Usage: /delete_action <weather|holiday> <code_or_name>")
+                return
+            action_type = parts[1]
+            key = parts[2]
+            try:
+                va = self._get_effective_value(user_id, "video_actions") or {}
+                if isinstance(va, str):
+                    va = json.loads(va)
+                if isinstance(va, dict) and action_type in va and key in va[action_type]:
+                    del va[action_type][key]
+                    self.db.save_user_config(user_id, "video_actions", va)
+                    await event.respond(f"✅ Removed {action_type}/{key}.")
+                else:
+                    await event.respond("Action not found.")
+            except Exception as e:
+                await event.respond(f"❌ Failed: {e}")
+
         @self.client.on(events.NewMessage(pattern="/connection"))
         async def show_connection(event):
             await self._check_allowed(event)
@@ -554,9 +867,7 @@ class BotController:
         commands = [
             ("start", "Start bot"),
             ("help", "Show help message"),
-            ("settings", "Show your settings"),
-            ("set_variable", "Set config variable"),
-            ("delete_variable", "Delete config variable"),
+            ("settings", "Interactive settings menu (recommended)"),
             ("update", "Force avatar update now"),
             ("upload", "Upload base image"),
             ("video_mode", "Set video generation mode"),
@@ -565,6 +876,9 @@ class BotController:
             ("delete_time", "Delete update time (HH:MM)"),
             ("connection", "Show your business connection"),
             ("weather", "Show current weather"),
+            # power-user / advanced still available:
+            ("set_variable", "Set config variable"),
+            ("set_action", "Set video action"),
         ]
         admin_commands = [
             ("logs", "Show recent logs"),
@@ -572,7 +886,6 @@ class BotController:
             ("revoke", "Revoke access from user"),
             ("list_users", "List all users with access"),
             ("set_global_variable", "Set global config variable"),
-            ("delete_global_variable", "Delete global config variable"),
         ]
         await self.client(SetBotCommandsRequest(
             scope=BotCommandScopeDefault(),
@@ -588,10 +901,12 @@ class BotController:
 /connection - Show business connection status
 /start - Connect via Settings > Chat Automation
 
-⚙️ Settings:
-/settings - Show your settings
-/set_variable - Set config variable
-/delete_variable - Delete config variable
+⚙️ Settings (new improved UI):
+/settings — Browse & edit by categories (📍 Location, ✍️ Prompts, 🎥 Video, 📅 Schedule, etc.)
+/set_variable KEY VALUE — Direct set (power users)
+/set_action <weather|holiday> CODE "action text" — Easy edit for video triggers
+/cancel — Abort any pending value input
+/delete_variable — (kept for compatibility)
 
 🔄 Updates:
 /update - Force update now
@@ -608,8 +923,7 @@ class BotController:
 /grant <user_id> - Grant access
 /revoke <user_id> - Revoke access
 /list_users - List all users
-/set_global_variable - Set global default variable
-/delete_global_variable - Delete global default variable
+/set_global_variable - Set global default
 /logs - Show recent logs"""
         await event.respond(help_text)
 
