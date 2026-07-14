@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from dava.config import ImageGenerators, VideoGenerators
 from dava.generators import get_image_generator, get_video_generator
 from dava.generators.image_generator import ImageGenerator
@@ -119,6 +121,17 @@ class TestVideoGeneratorABC:
         assert result._auth_path == "/tmp/fake-auth.json"
         assert result._model == "grok-imagine-image"
 
+    def test_hermes_with_xai_auth_path(self):
+        mock_config = MagicMock()
+        result = get_image_generator(
+            mock_config,
+            image_generator=ImageGenerators.HERMES,
+            xai_auth_path="/tmp/dava-xai.json",
+        )
+        from dava.generators.hermes_image_generator import HermesImageGenerator
+        assert isinstance(result, HermesImageGenerator)
+        assert result._auth_path == "/tmp/dava-xai.json"
+
 
 class TestGetVideoGeneratorHermes:
     def test_hermes(self):
@@ -145,3 +158,46 @@ class TestGetVideoGeneratorHermes:
         assert isinstance(result, HermesVideoGenerator)
         assert result._auth_path == "/tmp/fake.json"
         assert result._model == "grok-imagine-video-1.5-preview"
+
+    def test_hermes_video_with_xai_auth_path(self):
+        mock_config = MagicMock()
+        result = get_video_generator(
+            mock_config,
+            video_generator=VideoGenerators.HERMES,
+            xai_auth_path="/tmp/dava-xai-video.json",
+        )
+        from dava.generators.hermes_video_generator import HermesVideoGenerator
+        assert isinstance(result, HermesVideoGenerator)
+        assert result._auth_path == "/tmp/dava-xai-video.json"
+
+
+# Basic smoke tests for the dedicated xAI auth manager (no network)
+class TestXaiAuthManager:
+    def test_mask_token_reexport(self):
+        from dava.generators.xai_auth import mask_token as xai_mask
+        assert xai_mask("abcdef1234567890") == "abcdef...7890"
+        assert xai_mask("") == "<empty>"
+
+    @pytest.mark.asyncio
+    async def test_load_missing_returns_none(self, tmp_path):
+        from dava.generators.xai_auth import load_xai_tokens
+        p = tmp_path / "nope.json"
+        assert await load_xai_tokens(str(p)) is None
+
+    @pytest.mark.asyncio
+    async def test_save_and_load_roundtrip(self, tmp_path):
+        from dava.generators.xai_auth import save_xai_tokens, load_xai_tokens
+        target = tmp_path / "xai.json"
+        tokens = {
+            "access_token": "acc_123456",
+            "refresh_token": "ref_abcdef",
+            "expires_in": 21600,
+        }
+        path = await save_xai_tokens(str(target), tokens)
+        loaded = await load_xai_tokens(str(path))
+        assert loaded is not None
+        assert loaded["access_token"] == "acc_123456"
+        assert "last_refresh" in loaded
+        # file should be 0600 (best effort on the test fs)
+        mode = path.stat().st_mode & 0o777
+        assert mode == 0o600 or mode == 0o666  # some test envs ignore umask

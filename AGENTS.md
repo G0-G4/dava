@@ -8,6 +8,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
 
 - **Run**: `uv run main.py`
 - **Run migrations**: `uv run scripts/run_migrations.py` (required before first run and after schema changes)
+- **Obtain dedicated xAI token** (for `image_generator=hermes` / `video_generator=hermes`): `uv run scripts/init_xai_auth.py` (run as the bot service user; produces independent refresh grant)
 - **Tests**: `uv run pytest`
 - **Single test file**: `uv run pytest tests/test_config.py`
 - **With coverage**: `uv run pytest --cov=dava`
@@ -24,7 +25,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
   - `weather_descriptor.py` — fetches from Open-Meteo API, maps WMO codes to prompt-friendly descriptions. Returns `weather_code` in forecast dict
   - `weather_codes.py` — large dict mapping WMO weather codes → season × day/night prompt fragments
   - `holidays.py` — uses `workalendar` for Russian holidays, Friday 13th special case
-  - `generators/` — `ImageGenerator` ABC with `StableDiffusionGenerator` (scrapes stablediffusionweb.com), `NanoBananaGenerator` (Polza.ai API), `VideoGenerator` ABC, `VeoGenerator` (Polza.ai REFERENCE_2_VIDEO), `PolzaBase` (shared Polza API logic)
+  - `generators/` — `ImageGenerator` ABC with `StableDiffusionGenerator`, `NanoBananaGenerator` (Polza), `VideoGenerator` ABC, `VeoGenerator`, `HermesImageGenerator`/`HermesVideoGenerator` (real xAI Grok Imagine via dedicated OAuth), plus `xai_auth.py` (device-code login + auto refresh for independent tokens) and `polza_base.py`
   - `common.py` — shared async HTTP helper
   - `errors.py` — `RequestError`
   - `logs.py` — rotating file handler + in-memory ring buffer (used by `/logs` bot command)

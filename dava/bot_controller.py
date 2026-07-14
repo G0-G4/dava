@@ -636,6 +636,7 @@ class BotController:
             # Hermes / xAI via Hermes token
             "hermes_auth_path": self._get_admin_value("hermes_auth_path"),
             "hermes_xai_image_model": self._get_admin_value("hermes_xai_image_model"),
+            "xai_auth_path": self._get_admin_value("xai_auth_path"),
         }
 
     async def _update_avatar(self, user_id: int) -> str:
@@ -673,6 +674,7 @@ class BotController:
                         image_url=image_params["image_url"],
                         hermes_auth_path=image_params.get("hermes_auth_path"),
                         hermes_xai_image_model=image_params.get("hermes_xai_image_model"),
+                        xai_auth_path=image_params.get("xai_auth_path"),
                     )
                     ref_image_path = await img_generator.generate_and_save_image(
                         ref_prompt, self.db.get_base_image_path(user_id), ref_output_path
@@ -690,6 +692,7 @@ class BotController:
                     reference_image_path=ref_image_path,
                     hermes_auth_path=self._get_admin_value("hermes_auth_path"),
                     hermes_xai_video_model=self._get_admin_value("hermes_xai_video_model"),
+                    xai_auth_path=self._get_admin_value("xai_auth_path"),
                 )
                 logger.info(f"User {user_id}: Video avatar updated!")
                 return "✅ Video avatar updated!"

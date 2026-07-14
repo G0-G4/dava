@@ -6,7 +6,8 @@ from pathlib import Path
 import aiohttp
 
 from dava.errors import RequestError
-from dava.generators.hermes_auth import get_hermes_xai_access_token, mask_token
+from dava.generators.hermes_auth import mask_token
+from dava.generators.xai_auth import get_xai_access_token, HERMES_XAI_USER_AGENT
 from dava.generators.image_generator import ImageGenerator
 
 logger = logging.getLogger(__name__)
@@ -18,42 +19,48 @@ DEFAULT_IMAGE_MODEL = "grok-imagine-image-quality"
 class HermesImageGenerator(ImageGenerator):
     """
     Image generator that calls the *real* xAI Grok Imagine endpoints
-    (https://api.x.ai/v1/images/generations and /v1/images/edits)
-    using the OAuth token that Hermes obtained for the user
-    (via `hermes model` / xai-oauth).
+    using a dedicated OAuth token obtained for dava
+    (via scripts/init_xai_auth.py or equivalent device-code flow).
 
-    This gives native Grok models (no FAL proxy) while reusing the
-    login the user already performed in Hermes.
+    Independent of any Hermes Agent token on the same machine.
     """
 
     def __init__(self, config=None, **kwargs):
         self._config = config
-        self._auth_path = kwargs.get("hermes_auth_path")
+        # Prefer the new dedicated xai_auth_path. Fall back to hermes_auth_path
+        # only for transition (the old key is no longer the runtime source).
+        self._auth_path = (
+            kwargs.get("xai_auth_path")
+            or kwargs.get("hermes_auth_path")
+        )
         self._model = kwargs.get("hermes_xai_image_model") or DEFAULT_IMAGE_MODEL
 
         if not self._auth_path and config:
-            # Fallback to reading from the passed config object
             if hasattr(config, "get"):
-                self._auth_path = config.get("hermes_auth_path")
+                self._auth_path = config.get("xai_auth_path") or config.get("hermes_auth_path")
                 if not self._model or self._model == DEFAULT_IMAGE_MODEL:
                     self._model = config.get("hermes_xai_image_model") or DEFAULT_IMAGE_MODEL
             else:
-                self._auth_path = getattr(config, "hermes_auth_path", None) or self._auth_path
+                self._auth_path = (
+                    getattr(config, "xai_auth_path", None)
+                    or getattr(config, "hermes_auth_path", None)
+                    or self._auth_path
+                )
                 if not self._model or self._model == DEFAULT_IMAGE_MODEL:
                     self._model = getattr(config, "hermes_xai_image_model", None) or DEFAULT_IMAGE_MODEL
 
-    def _get_token(self) -> str:
-        token = get_hermes_xai_access_token(self._auth_path)
+    async def _get_token(self) -> str:
+        token = await get_xai_access_token(self._auth_path)
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Using xAI token masked={mask_token(token)} (len={len(token)})")
         return token
 
     async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
-        token = self._get_token()
+        token = await self._get_token()
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
-            "User-Agent": "dava/1.0 (hermes-xai-grok)",
+            "User-Agent": HERMES_XAI_USER_AGENT,
         }
 
         # Always send the base/reference image for identity consistency.
@@ -71,14 +78,14 @@ class HermesImageGenerator(ImageGenerator):
             "aspect_ratio": "1:1",   # dava avatars are square
         }
 
-        logger.info(f"Using real xAI Grok Imagine ({self._model}) via Hermes token for image generation (reference-based)")
+        logger.info(f"Using real xAI Grok Imagine ({self._model}) via xAI OAuth for image generation (reference-based)")
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=300)) as session:
-            async with session.post(f"{XAI_BASE_URL}/images/edits", json=payload, headers=headers) as resp:
-                text = await resp.text()
-                if resp.status != 200:
-                    raise RequestError(f"xAI image edit failed: {resp.status} - {text}")
-                data = json.loads(text)
+        data = await self._post_with_refresh_retry(
+            f"{XAI_BASE_URL}/images/edits",
+            payload=payload,
+            initial_headers=headers,
+            timeout=300,
+        )
 
         # Response shape is OpenAI-compatible: {"data": [{"url": "..."} , ...]}
         image_url = None
@@ -115,6 +122,47 @@ class HermesImageGenerator(ImageGenerator):
 
         logger.info(f"xAI image saved to {save_path}")
         return str(save_path.absolute())
+
+    async def _post_with_refresh_retry(
+        self,
+        url: str,
+        *,
+        payload: dict,
+        initial_headers: dict,
+        timeout: int = 300,
+    ) -> dict:
+        """
+        POST with one automatic refresh + retry when the access token
+        is rejected (401 or 403 "bad-credentials"/"unauthenticated").
+        """
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.post(url, json=payload, headers=initial_headers) as resp:
+                text = await resp.text()
+                if resp.status == 200:
+                    return json.loads(text) if text else {}
+
+                body_lower = text.lower()
+                is_token_invalid = (
+                    resp.status in (401, 403) or
+                    "bad-credentials" in body_lower or
+                    "unauthenticated" in body_lower or
+                    "could not be validated" in body_lower or
+                    "invalid token" in body_lower
+                )
+                if not is_token_invalid:
+                    raise RequestError(f"xAI request failed: {resp.status} - {text}")
+
+        # Token rejected → force refresh and retry once
+        logger.warning(f"xAI auth error {resp.status} (token invalid), forcing refresh + retry")
+        new_token = await get_xai_access_token(self._auth_path, force_refresh=True)
+        headers2 = {**initial_headers, "Authorization": f"Bearer {new_token}"}
+
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.post(url, json=payload, headers=headers2) as resp:
+                text = await resp.text()
+                if resp.status != 200:
+                    raise RequestError(f"xAI request failed after refresh: {resp.status} - {text}")
+                return json.loads(text) if text else {}
 
     def _encode_image(self, image_path: str) -> str:
         path = Path(image_path)

@@ -16,6 +16,7 @@ def get_image_generator(
     image_url: str | None = None,
     hermes_auth_path: str | None = None,
     hermes_xai_image_model: str | None = None,
+    xai_auth_path: str | None = None,
 ):
     if image_generator is None:
         image_generator = ImageGenerators.NANO_BANANA_2
@@ -26,10 +27,12 @@ def get_image_generator(
         except ValueError:
             style = None
 
-    # Build hermes config overrides (passed down from admin values)
+    # Build hermes / xai config overrides (passed down from admin values)
     hermes_overrides = {}
     if hermes_auth_path:
         hermes_overrides["hermes_auth_path"] = hermes_auth_path
+    if xai_auth_path:
+        hermes_overrides["xai_auth_path"] = xai_auth_path
     if hermes_xai_image_model:
         hermes_overrides["hermes_xai_image_model"] = hermes_xai_image_model
 
@@ -65,6 +68,7 @@ def get_video_generator(
     video_generator: VideoGenerators | str | None = None,
     hermes_auth_path: str | None = None,
     hermes_xai_video_model: str | None = None,
+    xai_auth_path: str | None = None,
 ) -> VideoGenerator:
     if video_generator is None:
         video_generator = VideoGenerators.VEO3_FAST
@@ -75,6 +79,8 @@ def get_video_generator(
         overrides = {}
         if hermes_auth_path:
             overrides["hermes_auth_path"] = hermes_auth_path
+        if xai_auth_path:
+            overrides["xai_auth_path"] = xai_auth_path
         if hermes_xai_video_model:
             overrides["hermes_xai_video_model"] = hermes_xai_video_model
         return HermesVideoGenerator(config, **overrides)

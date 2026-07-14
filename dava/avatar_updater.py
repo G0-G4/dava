@@ -33,6 +33,7 @@ class AvatarUpdater:
         image_url: str | None = None,
         hermes_auth_path: str | None = None,
         hermes_xai_image_model: str | None = None,
+        xai_auth_path: str | None = None,
     ):
         connection = self.db.load_connection(user_id)
         if not connection:
@@ -73,6 +74,7 @@ class AvatarUpdater:
                 image_url=image_url,
                 hermes_auth_path=hermes_auth_path,
                 hermes_xai_image_model=hermes_xai_image_model,
+                xai_auth_path=xai_auth_path,
             )
             img_path = await generator.generate_and_save_image(
                 prompt, base_image_path, output_path
@@ -95,6 +97,7 @@ class AvatarUpdater:
         reference_image_path: str | None = None,
         hermes_auth_path: str | None = None,
         hermes_xai_video_model: str | None = None,
+        xai_auth_path: str | None = None,
     ):
         connection = self.db.load_connection(user_id)
         if not connection:
@@ -131,6 +134,7 @@ class AvatarUpdater:
                 video_generator=video_generator,
                 hermes_auth_path=hermes_auth_path,
                 hermes_xai_video_model=hermes_xai_video_model,
+                xai_auth_path=xai_auth_path,
             )
             video_path = await generator.generate_and_save_video(
                 prompt, ref_path, output_path

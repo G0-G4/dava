@@ -43,6 +43,7 @@ ADMIN_ONLY_KEYS = frozenset({
     "hermes_auth_path",
     "hermes_xai_image_model",
     "hermes_xai_video_model",
+    "xai_auth_path",
 })
 
 USER_CONFIGURABLE_KEYS = frozenset({
@@ -70,6 +71,7 @@ _TYPE_MAP = {
     "hermes_auth_path": str,
     "hermes_xai_image_model": str,
     "hermes_xai_video_model": str,
+    "xai_auth_path": str,
     "prompt_text": str,
     "place": str,
     "latitude": float,
