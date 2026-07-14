@@ -136,6 +136,20 @@ class BotController:
             return s[:truncate] + "…"
         return s
 
+    def _is_complex_value(self, value) -> bool:
+        """True for dicts, lists and long strings (the ones we want to offer 'View full' for)."""
+        if value is None:
+            return False
+        if isinstance(value, (dict, list)):
+            return True
+        if isinstance(value, str) and len(value) > 60:
+            return True
+        return False
+
+    def _should_offer_view_full(self, user_id: int, key: str) -> bool:
+        """Whether to show a '👁 View full' button for this key (large JSON or prompt etc.)."""
+        return self._is_complex_value(self._get_effective_value(user_id, key))
+
     def _build_settings_summary(self, user_id: int) -> str:
         """Build a readable grouped summary of current effective settings."""
         user_config = self.db.load_user_config(user_id)
@@ -231,13 +245,17 @@ class BotController:
             for cat_name, keys in ADMIN_SETTING_CATEGORIES.items():
                 text_lines.append(f"\n{cat_name}")
                 for k in keys:
-                    val = global_config.get(k, "(not set)")
-                    short = str(val)[:70] + ("…" if len(str(val)) > 70 else "")
-                    text_lines.append(f"• {k}: {short}")
+                    disp = self._get_effective_display(user_id, k, truncate=80)
+                    text_lines.append(f"• {k}: {disp}")
                     buttons.append([KeyboardButtonCallback(
                         text=f"✏️ {k}",
                         data=f"setglobalvar-{k}".encode(),
                     )])
+                    if self._is_complex_value( global_config.get(k) ):
+                        buttons.append([KeyboardButtonCallback(
+                            text="👁 View full",
+                            data=f"settings-admin-{k}".encode(),
+                        )])
             buttons.append([KeyboardButtonCallback(text="« Back to main", data=b"back:main")])
             return "\n".join(text_lines), buttons
 
@@ -259,12 +277,18 @@ class BotController:
                         KeyboardButtonCallback(text="never", data=b"toggle:video_mode:never"),
                     ])
                 else:
-                    edit_label = "✏️ Edit " + k
-                    if k in ("prompt_text", "video_prompt_text"):
-                        edit_label = "✏️ Edit prompt"
-                    buttons.append([KeyboardButtonCallback(text=edit_label, data=f"edit:{k}".encode())])
+                    if k == "video_actions":
+                        # Special handling + descriptive button added after the loop
+                        pass
+                    else:
+                        edit_label = "✏️ Edit " + k
+                        if k == "video_prompt_text":
+                            edit_label = "✏️ Edit video prompt"
+                        elif k == "prompt_text":
+                            edit_label = "✏️ Edit prompt"
+                        buttons.append([KeyboardButtonCallback(text=edit_label, data=f"edit:{k}".encode())])
 
-                if k in ("prompt_text", "video_prompt_text"):
+                if self._should_offer_view_full(user_id, k) and k != "video_actions":
                     buttons.append([KeyboardButtonCallback(
                         text="👁 View full",
                         data=f"settings-user-{k}".encode(),
@@ -283,10 +307,16 @@ class BotController:
                 h = len(va.get("holidays", {})) if isinstance(va, dict) else 0
                 text_lines.append(f"\nvideo_actions: {w} weather + {h} holiday entries")
                 text_lines.append("Tip: use /set_action weather|holiday CODE \"your action text\" for easy edits.")
-                buttons.append([KeyboardButtonCallback(
-                    text="✏️ Edit video_actions (full JSON)",
-                    data=b"edit:video_actions",
-                )])
+                buttons.append([
+                    KeyboardButtonCallback(
+                        text="✏️ Edit video_actions (full JSON)",
+                        data=b"edit:video_actions",
+                    ),
+                    KeyboardButtonCallback(
+                        text="👁 View full",
+                        data=b"settings-user-video_actions",
+                    ),
+                ])
 
         buttons.append([KeyboardButtonCallback(text="« Back", data=b"back:main")])
         return "\n".join(text_lines), buttons
