@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shlex
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -68,6 +69,8 @@ class BotController:
         self._pending_time: set[int] = set()
         self._pending_upload: set[int] = set()
         self._pending_global_var: set[int] = set()
+        self._pending_action: set[int] = set()
+        self._pending_delete_action: set[int] = set()
         self._running_jobs: set[int] = set()
         self.holiday_checker = HolidayChecker()
         self._setup_handlers()
@@ -149,6 +152,44 @@ class BotController:
     def _should_offer_view_full(self, user_id: int, key: str) -> bool:
         """Whether to show a '👁 View full' button for this key (large JSON or prompt etc.)."""
         return self._is_complex_value(self._get_effective_value(user_id, key))
+
+    async def _apply_video_action(self, user_id: int, action_type: str, key: str, action_text: str, event=None):
+        """Shared logic to add/update a video action (used by command and menu flow)."""
+        try:
+            va = self._get_effective_value(user_id, "video_actions") or {}
+            if isinstance(va, str):
+                va = json.loads(va)
+            if not isinstance(va, dict):
+                va = {}
+            va.setdefault(action_type, {})[key] = action_text
+            self.db.save_user_config(user_id, "video_actions", va)
+            msg = f"✅ Set {action_type}/{key} action."
+            if event:
+                await event.respond(msg)
+        except Exception as e:
+            if event:
+                await event.respond(f"❌ Failed: {e}")
+
+    async def _delete_video_action(self, user_id: int, action_type: str, key: str, event=None):
+        """Shared logic to remove a video action (used by command and menu flow)."""
+        try:
+            va = self._get_effective_value(user_id, "video_actions") or {}
+            if isinstance(va, str):
+                va = json.loads(va)
+            if isinstance(va, dict) and action_type in va and key in va[action_type]:
+                del va[action_type][key]
+                if not va.get(action_type):
+                    va.pop(action_type, None)
+                self.db.save_user_config(user_id, "video_actions", va)
+                msg = f"✅ Removed {action_type}/{key}."
+                if event:
+                    await event.respond(msg)
+            else:
+                if event:
+                    await event.respond("Action not found.")
+        except Exception as e:
+            if event:
+                await event.respond(f"❌ Failed: {e}")
 
     def _build_settings_summary(self, user_id: int) -> str:
         """Build a readable grouped summary of current effective settings."""
@@ -306,7 +347,7 @@ class BotController:
                 w = len(va.get("weather", {})) if isinstance(va, dict) else 0
                 h = len(va.get("holidays", {})) if isinstance(va, dict) else 0
                 text_lines.append(f"\nvideo_actions: {w} weather + {h} holiday entries")
-                text_lines.append("Tip: use /set_action weather|holiday CODE \"your action text\" for easy edits.")
+                text_lines.append("Use buttons below or /set_action / /delete_action for quick edits.")
                 buttons.append([
                     KeyboardButtonCallback(
                         text="✏️ Edit video_actions (full JSON)",
@@ -317,6 +358,14 @@ class BotController:
                         data=b"settings-user-video_actions",
                     ),
                 ])
+                buttons.append([KeyboardButtonCallback(
+                    text="➕ Add action",
+                    data=b"add_action",
+                )])
+                buttons.append([KeyboardButtonCallback(
+                    text="🗑 Delete action",
+                    data=b"delete_action",
+                )])
 
         buttons.append([KeyboardButtonCallback(text="« Back", data=b"back:main")])
         return "\n".join(text_lines), buttons
@@ -488,6 +537,32 @@ class BotController:
                 self._pending_time.add(user_id)
                 await event.respond("Please send the new time in HH:MM format (UTC)")
 
+            elif event.data == b"add_action":
+                self._pending_action.add(user_id)
+                await event.respond(
+                    "➕ Adding a video action.\n\n"
+                    "Send in this format:\n"
+                    "weather <code> <action text>\n"
+                    "holiday \"name with spaces\" <action text>\n\n"
+                    "Examples:\n"
+                    "weather 95 lightning flash, user flinches\n"
+                    "holiday \"New Year's Day\" fireworks, user cheers\n\n"
+                    "You can also use the /set_action command.\n"
+                    "Type /cancel to abort."
+                )
+
+            elif event.data == b"delete_action":
+                self._pending_delete_action.add(user_id)
+                await event.respond(
+                    "🗑 Deleting a video action.\n\n"
+                    "Send in this format:\n"
+                    "weather <code>\n"
+                    "holiday \"name with spaces\"\n\n"
+                    "Example: weather 95\n\n"
+                    "You can also use the /delete_action command.\n"
+                    "Type /cancel to abort."
+                )
+
         @self.client.on(events.NewMessage())
         async def handle_value_input(event):
             user_id = event.chat_id
@@ -521,6 +596,44 @@ class BotController:
                         await event.respond(f"⏰ Added {time_str} to schedule")
                     else:
                         await event.respond("⏰ Time already exists in schedule")
+                elif user_id in self._pending_action and not event.text.startswith("/"):
+                    self._pending_action.discard(user_id)
+                    text = event.text.strip()
+                    try:
+                        parts = shlex.split(text)
+                    except ValueError:
+                        parts = text.split()
+                    if len(parts) < 3 or parts[0] not in ("weather", "holiday"):
+                        await event.respond(
+                            "❌ Invalid format.\n"
+                            "Send e.g.:\n"
+                            "weather 95 lightning flash, user flinches\n"
+                            "holiday \"New Year's Day\" fireworks exploding\n\n"
+                            "(Quote the key if it has spaces)"
+                        )
+                        return
+                    action_type = parts[0]
+                    key = parts[1]
+                    action_text = " ".join(parts[2:])
+                    await self._apply_video_action(user_id, action_type, key, action_text, event)
+                elif user_id in self._pending_delete_action and not event.text.startswith("/"):
+                    self._pending_delete_action.discard(user_id)
+                    text = event.text.strip()
+                    try:
+                        parts = shlex.split(text)
+                    except ValueError:
+                        parts = text.split()
+                    if len(parts) < 2 or parts[0] not in ("weather", "holiday"):
+                        await event.respond(
+                            "❌ Invalid format.\n"
+                            "Send e.g.:\n"
+                            "weather 95\n"
+                            "holiday \"New Year's Day\"\n"
+                        )
+                        return
+                    action_type = parts[0]
+                    key = parts[1]
+                    await self._delete_video_action(user_id, action_type, key, event)
                 elif event.photo and user_id in self._pending_upload:
                     self._pending_upload.discard(user_id)
                     await self._handle_photo_upload(event, user_id)
@@ -553,6 +666,12 @@ class BotController:
                 cleared = True
             if user_id in self._pending_upload:
                 self._pending_upload.discard(user_id)
+                cleared = True
+            if user_id in self._pending_action:
+                self._pending_action.discard(user_id)
+                cleared = True
+            if user_id in self._pending_delete_action:
+                self._pending_delete_action.discard(user_id)
                 cleared = True
             await event.respond("✅ Cancelled pending input." if cleared else "Nothing to cancel.")
 
@@ -768,51 +887,42 @@ class BotController:
         async def set_action(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            parts = event.text.split(maxsplit=3)
-            # /set_action <type> <code> <action...>
+            text = event.text.strip()
+            try:
+                parts = shlex.split(text)
+            except ValueError:
+                parts = text.split()
+            # after command: <type> <code> <action...>
             if len(parts) < 4 or parts[1] not in ("weather", "holiday"):
                 await event.respond(
                     "Usage: /set_action <weather|holiday> <code_or_name> <action description>\n"
-                    "Example: /set_action weather 95 \"lightning flash, user flinches\""
+                    "Example: /set_action weather 95 \"lightning flash, user flinches\"\n"
+                    "For names with spaces: /set_action holiday \"New Year's Day\" \"fireworks\""
                 )
                 return
             action_type = parts[1]
             key = parts[2]
-            action_text = parts[3]
-            try:
-                va = self._get_effective_value(user_id, "video_actions") or {}
-                if isinstance(va, str):
-                    va = json.loads(va)
-                if not isinstance(va, dict):
-                    va = {}
-                va.setdefault(action_type, {})[key] = action_text
-                self.db.save_user_config(user_id, "video_actions", va)
-                await event.respond(f"✅ Set {action_type}/{key} action.")
-            except Exception as e:
-                await event.respond(f"❌ Failed: {e}")
+            action_text = " ".join(parts[3:])
+            await self._apply_video_action(user_id, action_type, key, action_text, event)
 
         @self.client.on(events.NewMessage(pattern="/delete_action"))
         async def delete_action(event):
             await self._check_allowed(event)
             user_id = event.chat_id
-            parts = event.text.split()
-            if len(parts) != 3 or parts[1] not in ("weather", "holiday"):
-                await event.respond("Usage: /delete_action <weather|holiday> <code_or_name>")
+            text = event.text.strip()
+            try:
+                parts = shlex.split(text)
+            except ValueError:
+                parts = text.split()
+            if len(parts) < 3 or parts[1] not in ("weather", "holiday"):
+                await event.respond(
+                    "Usage: /delete_action <weather|holiday> <code_or_name>\n"
+                    "For names with spaces: /delete_action holiday \"New Year's Day\""
+                )
                 return
             action_type = parts[1]
             key = parts[2]
-            try:
-                va = self._get_effective_value(user_id, "video_actions") or {}
-                if isinstance(va, str):
-                    va = json.loads(va)
-                if isinstance(va, dict) and action_type in va and key in va[action_type]:
-                    del va[action_type][key]
-                    self.db.save_user_config(user_id, "video_actions", va)
-                    await event.respond(f"✅ Removed {action_type}/{key}.")
-                else:
-                    await event.respond("Action not found.")
-            except Exception as e:
-                await event.respond(f"❌ Failed: {e}")
+            await self._delete_video_action(user_id, action_type, key, event)
 
         @self.client.on(events.NewMessage(pattern="/connection"))
         async def show_connection(event):
@@ -909,6 +1019,7 @@ class BotController:
             # power-user / advanced still available:
             ("set_variable", "Set config variable"),
             ("set_action", "Set video action"),
+            ("delete_action", "Delete video action"),
         ]
         admin_commands = [
             ("logs", "Show recent logs"),
@@ -935,6 +1046,7 @@ class BotController:
 /settings — Browse & edit by categories (📍 Location, ✍️ Prompts, 🎥 Video, 📅 Schedule, etc.)
 /set_variable KEY VALUE — Direct set (power users)
 /set_action <weather|holiday> CODE "action text" — Easy edit for video triggers
+/delete_action <weather|holiday> CODE — Remove a video action
 /cancel — Abort any pending value input
 /delete_variable — (kept for compatibility)
 
