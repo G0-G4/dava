@@ -55,7 +55,7 @@ class HermesImageGenerator(ImageGenerator):
             logger.debug(f"Using xAI token masked={mask_token(token)} (len={len(token)})")
         return token
 
-    async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
+    async def generate_and_save_image(self, prompt: str, input_image_path: str, output_path: str) -> str:
         token = await self._get_token()
         headers = {
             "Authorization": f"Bearer {token}",
@@ -63,9 +63,9 @@ class HermesImageGenerator(ImageGenerator):
             "User-Agent": HERMES_XAI_USER_AGENT,
         }
 
-        # Always send the base/reference image for identity consistency.
+        # Always send the input (base or scene reference) image for identity / scene consistency.
         # xAI uses /v1/images/edits for reference-guided generation.
-        image_b64 = self._encode_image(base_image_path)
+        image_b64 = self._encode_image(input_image_path)
         image_payload = {
             "type": "image_url",
             "url": f"data:image/jpeg;base64,{image_b64}",

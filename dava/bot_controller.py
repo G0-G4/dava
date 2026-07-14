@@ -28,6 +28,7 @@ from dava.generators import get_image_generator
 from dava.holidays import HolidayChecker
 from dava.logs import get_recent_logs
 from dava.weather_descriptor import WeatherDescriptor
+from dava.weather_codes import codes as weather_codes
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class BotController:
         self._pending_var: dict[int, str] = {}
         self._pending_time: set[int] = set()
         self._pending_upload: set[int] = set()
+        self._pending_reference_upload: set[int] = set()
         self._pending_global_var: set[int] = set()
         self._pending_action: set[int] = set()
         self._pending_delete_action: set[int] = set()
@@ -581,6 +583,11 @@ class BotController:
                     else:
                         self.db.save_user_config(user_id, var_name, new_value)
                         await event.respond(f"✅ {var_name} set to {new_value}")
+                        if var_name in ("place", "latitude", "longitude"):
+                            await event.respond(
+                                "📍 Location updated. To stabilize backgrounds for this place, "
+                                "run /generate_reference (uses neutral clear conditions — recommended) or /upload_reference."
+                            )
                 elif user_id in self._pending_time and not event.text.startswith("/"):
                     self._pending_time.discard(user_id)
                     time_str = event.text.strip()
@@ -637,6 +644,9 @@ class BotController:
                 elif event.photo and user_id in self._pending_upload:
                     self._pending_upload.discard(user_id)
                     await self._handle_photo_upload(event, user_id)
+                elif event.photo and user_id in self._pending_reference_upload:
+                    self._pending_reference_upload.discard(user_id)
+                    await self._handle_reference_photo_upload(event, user_id)
             except Exception as e:
                 await event.respond(f"❌ Error: {str(e)}")
 
@@ -666,6 +676,9 @@ class BotController:
                 cleared = True
             if user_id in self._pending_upload:
                 self._pending_upload.discard(user_id)
+                cleared = True
+            if user_id in self._pending_reference_upload:
+                self._pending_reference_upload.discard(user_id)
                 cleared = True
             if user_id in self._pending_action:
                 self._pending_action.discard(user_id)
@@ -799,6 +812,35 @@ class BotController:
             user_id = event.chat_id
             self._pending_upload.add(user_id)
             await event.respond("📸 Please send your base image (photo).")
+
+        @self.client.on(events.NewMessage(pattern="/upload_reference"))
+        async def upload_reference_command(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            self._pending_reference_upload.add(user_id)
+            await event.respond(
+                "🖼️ Please send a full scene reference photo (ideally you + the desired background/place).\n"
+                "This will be used as a visual prior for stable backgrounds in future generations. "
+                "/generate_reference is recommended (it uses neutral clear conditions)."
+            )
+
+        @self.client.on(events.NewMessage(pattern="/generate_reference"))
+        async def generate_reference_command(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            try:
+                await event.respond("⏳ Generating scene reference using neutral clear daytime conditions (current season) + your base image + place...")
+                ref_path = await self._generate_and_save_reference(user_id)
+                await event.respond(f"✅ Scene reference generated and activated.\nSaved to: {ref_path}\n\nFuture /update runs will use it for consistent backgrounds. Textual place description is de-emphasized when the reference is active.")
+            except Exception as e:
+                await event.respond(f"❌ Failed to generate reference: {e}")
+
+        @self.client.on(events.NewMessage(pattern="/clear_reference"))
+        async def clear_reference_command(event):
+            await self._check_allowed(event)
+            user_id = event.chat_id
+            self.db.clear_reference_image(user_id)
+            await event.respond("✅ Scene reference cleared. Future updates will use your base image + full prompt again.")
 
         @self.client.on(events.NewMessage(pattern="/schedule"))
         async def show_schedule(event):
@@ -985,8 +1027,9 @@ class BotController:
             for uid in allowed:
                 has_conn = "✅" if self.db.load_connection(uid) else "❌"
                 has_img = "✅" if self.db.has_base_image(uid) else "❌"
+                has_ref = "✅" if self.db.has_reference_image(uid) else "❌"
                 is_admin = " 👑" if self.db.is_admin(uid) else ""
-                lines.append(f"• {uid}{is_admin} | Connection: {has_conn} | Image: {has_img}")
+                lines.append(f"• {uid}{is_admin} | Connection: {has_conn} | Image: {has_img} | Ref: {has_ref}")
             await event.respond("Users with access:\n" + "\n".join(lines))
 
     async def _handle_photo_upload(self, event, user_id: int):
@@ -1003,6 +1046,23 @@ class BotController:
             logger.exception(f"Failed to save base image for user {user_id}")
             await event.respond(f"❌ Failed to save image: {str(e)}")
 
+    async def _handle_reference_photo_upload(self, event, user_id: int):
+        if not event.photo:
+            await event.respond("❌ Please send a photo as your scene reference image.")
+            return
+        try:
+            from io import BytesIO
+            buf = BytesIO()
+            await event.download_media(file=buf)
+            await self.db.save_reference_image_bytes(user_id, buf.getvalue())
+            await event.respond(
+                "✅ Scene reference image uploaded successfully!\n"
+                "It will now be used as the visual reference for background stability on updates."
+            )
+        except Exception as e:
+            logger.exception(f"Failed to save reference image for user {user_id}")
+            await event.respond(f"❌ Failed to save reference image: {str(e)}")
+
     async def _setup_menu(self):
         commands = [
             ("start", "Start bot"),
@@ -1010,6 +1070,9 @@ class BotController:
             ("settings", "Interactive settings menu (recommended)"),
             ("update", "Force avatar update now"),
             ("upload", "Upload base image"),
+            ("upload_reference", "Upload scene reference image (for stable background)"),
+            ("generate_reference", "Generate scene reference (uses neutral clear conditions for stable bg)"),
+            ("clear_reference", "Clear current scene reference"),
             ("video_mode", "Set video generation mode"),
             ("schedule", "Show your update schedule"),
             ("add_time", "Add new update time (HH:MM)"),
@@ -1038,7 +1101,10 @@ class BotController:
         help_text = """🤖 Avatar Updater Bot Commands:
 
 📸 Setup:
-/upload - Upload base image
+/upload - Upload base image (raw identity photo)
+/upload_reference - Upload scene reference (you + stable background for place)
+/generate_reference - Bake a scene reference using neutral clear conditions + current prompt + location (recommended for stable backgrounds)
+/clear_reference - Remove the active scene reference
 /connection - Show business connection status
 /start - Connect via Settings > Chat Automation
 
@@ -1113,9 +1179,10 @@ class BotController:
             weather = await self._get_weather(user_id)
             use_video, weather_code = await self._should_generate_video(weather, user_id)
             if use_video:
-                ref_prompt = await self._prepare_prompt(user_id, weather)
+                ref_prompt = await self._prepare_prompt(user_id, weather)  # full place for baking contextual scene ref
                 image_params = self._resolve_image_params(user_id)
-                ref_cache_hash = self.db.compute_cache_hash(user_id, ref_prompt, mode="image")
+                base_for_ref = self.db.get_base_image_path(user_id)
+                ref_cache_hash = self.db.compute_cache_hash(user_id, ref_prompt, mode="image", reference_image_path=base_for_ref)
                 ref_cached = self.db.check_cache(user_id, ref_cache_hash, mode="image")
                 if ref_cached:
                     ref_image_path = ref_cached
@@ -1133,7 +1200,7 @@ class BotController:
                         xai_auth_path=image_params.get("xai_auth_path"),
                     )
                     ref_image_path = await img_generator.generate_and_save_image(
-                        ref_prompt, self.db.get_base_image_path(user_id), ref_output_path
+                        ref_prompt, base_for_ref, ref_output_path
                     )
                 video_prompt = await self._prepare_video_prompt(user_id, weather, weather_code)
                 video_gen = self._get_admin_value("video_generator")
@@ -1153,10 +1220,14 @@ class BotController:
                 logger.info(f"User {user_id}: Video avatar updated!")
                 return "✅ Video avatar updated!"
             else:
-                prompt = await self._prepare_prompt(user_id, weather)
+                scene_ref = self.db.get_reference_image_path(user_id)
+                use_scene_ref = bool(scene_ref)
+                prompt = await self._prepare_prompt(user_id, weather, include_place=not use_scene_ref)
                 image_params = self._resolve_image_params(user_id)
-                await self.updater.async_update_avatar(prompt, user_id, **image_params)
-                logger.info(f"User {user_id}: Avatar updated!")
+                await self.updater.async_update_avatar(
+                    prompt, user_id, reference_image_path=scene_ref, **image_params
+                )
+                logger.info(f"User {user_id}: Avatar updated! (scene_ref={use_scene_ref})")
                 return "✅ Avatar updated!"
         except Exception as e:
             error = f"Error while updating avatar: {str(e)}"
@@ -1165,7 +1236,23 @@ class BotController:
         finally:
             self._running_jobs.discard(user_id)
 
-    async def _prepare_prompt(self, user_id: int, weather: dict | None = None) -> str:
+    async def _prepare_prompt(
+        self,
+        user_id: int,
+        weather: dict | None = None,
+        *,
+        include_place: bool = True,
+        apply_holidays: bool = True,
+    ) -> str:
+        """Prepare the image prompt, substituting weather/place/holiday tokens.
+
+        When a scene reference image is active (include_place=False), we avoid injecting
+        the textual place so the model relies on the visual reference for background/landmarks.
+        We also append guidance to preserve the reference scene.
+
+        When apply_holidays=False (used for reference baking), we skip holiday-specific
+        clothing and details so the reference represents the base location.
+        """
         place = self._get_effective_value(user_id, "place") or ""
         holidays = self._get_effective_value(user_id, "holidays")
         prompt_template = self._get_effective_value(user_id, "prompt_text")
@@ -1173,14 +1260,28 @@ class BotController:
         if weather is None:
             weather = await self._get_weather(user_id)
         prompt = prompt_template or ""
-        weather = {**(weather or {}), "place": place}
-        holiday = self.holiday_checker.get_today_holiday(holidays)
-        if holiday:
-            weather["clothing"] = self.holiday_checker.get_clothing(holidays)
-            weather["environmental_details"] = self.holiday_checker.get_details(holidays)
-        for key, val in weather.items():
+        substitutions = {**(weather or {})}
+        if include_place:
+            substitutions["place"] = place
+        else:
+            substitutions["place"] = "the location shown in the reference image"
+
+        if apply_holidays:
+            holiday = self.holiday_checker.get_today_holiday(holidays)
+            if holiday:
+                substitutions["clothing"] = self.holiday_checker.get_clothing(holidays)
+                substitutions["environmental_details"] = self.holiday_checker.get_details(holidays)
+
+        for key, val in substitutions.items():
             prompt = prompt.replace("{" + key + "}", str(val))
-        logger.info(f"User {user_id}: Prepared prompt: {prompt}")
+
+        if not include_place:
+            # Reinforce that the visual reference carries the background.
+            bg_guide = " Preserve the exact background, landmarks, scenery and overall composition from the reference image; only adapt weather, lighting, clothing and environmental effects."
+            if bg_guide not in prompt:
+                prompt = prompt.rstrip() + bg_guide
+
+        logger.info(f"User {user_id}: Prepared prompt (include_place={include_place}, apply_holidays={apply_holidays}): {prompt}")
         return prompt
 
     async def _get_weather(self, user_id: int) -> dict | None:
@@ -1198,6 +1299,32 @@ class BotController:
         except Exception:
             logger.warning(f"Could not fetch weather for user {user_id}")
             return None
+
+    def _get_neutral_reference_weather(self, user_id: int) -> dict:
+        """Return a clean neutral weather description for baking scene references.
+
+        We deliberately use clear daytime conditions (code 0) so the reference
+        background is well-lit and easy for the model to adapt different weather
+        effects onto later. We still respect the current season so that vegetation,
+        snow cover, etc. roughly match the time of year.
+        """
+        month = datetime.now().month
+        if month in [12, 1, 2]:
+            season = "winter"
+        elif month in [3, 4, 5]:
+            season = "spring"
+        elif month in [6, 7, 8]:
+            season = "summer"
+        else:
+            season = "autumn"
+
+        # Clear / sunny daytime is the most stable base for references
+        code = "0"
+        day = "day"
+
+        base = dict(weather_codes.get(code, weather_codes["0"])[season][day])
+        base["weather_code"] = code
+        return base
 
     async def _should_generate_video(self, weather: dict | None, user_id: int) -> tuple[bool, str | None]:
         video_mode = self._get_effective_value(user_id, "video_mode")
@@ -1256,6 +1383,56 @@ class BotController:
             prompt = prompt.replace("{" + key + "}", str(val))
         logger.info(f"User {user_id}: Prepared video prompt: {prompt}")
         return prompt
+
+    async def _generate_and_save_reference(self, user_id: int) -> str:
+        """Generate (or reuse cached) a full scene reference image using a *neutral clear daytime*
+        prompt + place, based on the raw base avatar, and promote it as the user's active reference image.
+
+        We intentionally use neutral weather (clear day, current season) instead of live current
+        weather so the baked background is stable and easy for the model to adapt different
+        conditions onto later.
+        """
+
+        if not self.db.has_base_image(user_id):
+            raise RuntimeError("No base image. Upload one first with /upload.")
+
+        base_path = self.db.get_base_image_path(user_id)
+        # Use neutral clear daytime conditions (current season) instead of live weather.
+        # This produces a stable, well-lit background that is easy to adapt different
+        # weather/lighting onto during normal updates.
+        neutral_weather = self._get_neutral_reference_weather(user_id)
+        ref_prompt = await self._prepare_prompt(
+            user_id, neutral_weather, include_place=True, apply_holidays=False
+        )
+
+        image_params = self._resolve_image_params(user_id)
+        cache_hash = self.db.compute_cache_hash(user_id, ref_prompt, mode="image", reference_image_path=base_path)
+        cached = self.db.check_cache(user_id, cache_hash, mode="image")
+        if cached:
+            generated_path = cached
+        else:
+            output_path = str(self.db.get_cache_path(user_id, cache_hash, mode="image"))
+            img_generator = get_image_generator(
+                self._config,
+                image_generator=image_params["image_generator"],
+                polza_model=image_params["polza_model"],
+                style=image_params["style"],
+                image_cfg_scale=image_params["image_cfg_scale"],
+                image_url=image_params["image_url"],
+                hermes_auth_path=image_params.get("hermes_auth_path"),
+                hermes_xai_image_model=image_params.get("hermes_xai_image_model"),
+                xai_auth_path=image_params.get("xai_auth_path"),
+            )
+            generated_path = await img_generator.generate_and_save_image(
+                ref_prompt, base_path, output_path
+            )
+
+        # Promote the generated (or cached) image as the canonical reference for this user/location
+        with open(generated_path, "rb") as f:
+            ref_bytes = f.read()
+        ref_path = await self.db.save_reference_image_bytes(user_id, ref_bytes)
+        logger.info(f"User {user_id}: Scene reference baked and saved to {ref_path}")
+        return ref_path
 
     def _restore_user_schedule(self, user_id: int):
         schedule = self.db.load_schedule(user_id)

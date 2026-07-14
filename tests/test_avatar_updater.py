@@ -83,6 +83,25 @@ class TestAvatarUpdaterCache:
                 result = await updater.async_update_avatar("unique prompt", user_id=1)
                 mock_generator.generate_and_save_image.assert_called_once()
 
+    async def test_static_update_uses_reference_image_when_provided(self, avatar_updater_with_client):
+        updater = avatar_updater_with_client
+        _setup_user_with_image(updater)
+
+        user_dir = updater.db._data_dir / "users" / "1"
+        scene_ref = user_dir / "scene_ref.jpg"
+        scene_ref.write_bytes(b"scene reference with baked bg")
+
+        mock_generator = AsyncMock()
+        mock_generator.generate_and_save_image = AsyncMock(return_value=str(user_dir / "out.jpg"))
+
+        with patch("dava.avatar_updater.get_image_generator", return_value=mock_generator):
+            with patch.object(updater, "_delete_avatar", new_callable=AsyncMock):
+                await updater.async_update_avatar("weather prompt", user_id=1, reference_image_path=str(scene_ref))
+                mock_generator.generate_and_save_image.assert_called_once()
+                args, _ = mock_generator.generate_and_save_image.call_args
+                # second positional is now the input image (scene ref, not base)
+                assert args[1] == str(scene_ref)
+
 
 class TestVideoAvatarCache:
     async def test_video_cache_hit_with_reference_does_not_call_generator(self, avatar_updater_with_client):

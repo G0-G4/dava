@@ -31,6 +31,7 @@ class Database:
                 connection_user_id INTEGER,
                 edit_profile_photo BOOLEAN,
                 base_image_path TEXT,
+                reference_image_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS user_config (
@@ -175,6 +176,69 @@ class Database:
                 return str(fallback)
             return None
         return row["base_image_path"]
+
+    # -- Reference (scene / location) image --
+    # Used for background stabilization: a generated (or uploaded) full avatar image
+    # that includes the desired place/background. When present, it is used as the
+    # conditioning image for generation instead of the raw base, and prompts can
+    # de-emphasize textual place description.
+
+    def save_reference_image(self, user_id: int, source_path: Path) -> str:
+        import shutil
+        dest_dir = self._data_dir / "users" / str(user_id)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / "reference.jpg"
+        shutil.copy2(source_path, dest)
+        self._conn.execute(
+            "UPDATE users SET reference_image_path = ? WHERE user_id = ?",
+            (str(dest), user_id),
+        )
+        self._conn.commit()
+        logger.info(f"Saved reference image for user {user_id}")
+        return str(dest)
+
+    async def save_reference_image_bytes(self, user_id: int, data: bytes) -> str:
+        dest_dir = self._data_dir / "users" / str(user_id)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / "reference.jpg"
+        dest.write_bytes(data)
+        self._conn.execute(
+            "UPDATE users SET reference_image_path = ? WHERE user_id = ?",
+            (str(dest), user_id),
+        )
+        self._conn.commit()
+        logger.info(f"Saved reference image for user {user_id}")
+        return str(dest)
+
+    def has_reference_image(self, user_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT reference_image_path FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row or not row["reference_image_path"]:
+            return False
+        return Path(row["reference_image_path"]).exists()
+
+    def get_reference_image_path(self, user_id: int) -> str | None:
+        row = self._conn.execute(
+            "SELECT reference_image_path FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row or not row["reference_image_path"]:
+            fallback = self._data_dir / "users" / str(user_id) / "reference.jpg"
+            if fallback.exists():
+                return str(fallback)
+            return None
+        return row["reference_image_path"]
+
+    def clear_reference_image(self, user_id: int):
+        dest = self._data_dir / "users" / str(user_id) / "reference.jpg"
+        if dest.exists():
+            dest.unlink()
+        self._conn.execute(
+            "UPDATE users SET reference_image_path = NULL WHERE user_id = ?",
+            (user_id,),
+        )
+        self._conn.commit()
+        logger.info(f"Cleared reference image for user {user_id}")
 
 # -- Global config --
 

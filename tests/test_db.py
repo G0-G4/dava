@@ -146,6 +146,48 @@ class TestBaseImage:
         assert path == str(fallback)
 
 
+class TestReferenceImage:
+    async def test_save_and_has_reference_image(self, db, tmp_data_dir):
+        db.ensure_user(1)
+        # simulate bytes save (used by bot)
+        result = await db.save_reference_image_bytes(1, b"fake reference scene data")
+        assert db.has_reference_image(1) is True
+        assert Path(result).exists()
+        assert "reference.jpg" in result
+
+    def test_get_reference_image_path_fallback(self, db, tmp_data_dir):
+        db.ensure_user(1)
+        fallback = tmp_data_dir / "users" / "1" / "reference.jpg"
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+        fallback.write_bytes(b"scene ref")
+        path = db.get_reference_image_path(1)
+        assert path == str(fallback)
+
+    async def test_clear_reference_image(self, db, tmp_data_dir):
+        db.ensure_user(1)
+        await db.save_reference_image_bytes(1, b"to be cleared")
+        assert db.has_reference_image(1) is True
+        db.clear_reference_image(1)
+        assert db.has_reference_image(1) is False
+        # also check file gone or column nulled (get returns None or non-existing)
+        p = db.get_reference_image_path(1)
+        assert p is None or not Path(p).exists()
+
+    def test_compute_cache_hash_with_reference_for_image_mode(self, db, tmp_data_dir):
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(b"scene reference bytes")
+            ref = Path(f.name)
+        try:
+            db.ensure_user(1)
+            # base not strictly needed when ref provided
+            h1 = db.compute_cache_hash(1, "test prompt", mode="image", reference_image_path=str(ref))
+            h2 = db.compute_cache_hash(1, "test prompt", mode="image", reference_image_path=str(ref))
+            assert h1 == h2
+        finally:
+            ref.unlink(missing_ok=True)
+
+
 class TestGlobalConfig:
     def test_set_and_get(self, db):
         db.set_global_default("key1", "value1")

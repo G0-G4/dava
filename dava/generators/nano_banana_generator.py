@@ -32,8 +32,8 @@ class NanoBananaGenerator(PolzaBase, ImageGenerator):
             return NANO_BANANA_MODELS[generator.value]
         return NANO_BANANA_MODELS["nano-banana"]
 
-    async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
-        image_b64 = self._encode_image(base_image_path)
+    async def generate_and_save_image(self, prompt: str, input_image_path: str, output_path: str) -> str:
+        image_b64 = self._encode_image(input_image_path)
 
         payload = {
             "model": self._get_model(),

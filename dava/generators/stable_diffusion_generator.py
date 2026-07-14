@@ -48,8 +48,8 @@ class StableDiffusionGenerator(ImageGenerator):
         self._style = style
         self._image_url = image_url
 
-    def _get_and_encode_image(self, base_image_path: str) -> str:
-        image_path = Path(base_image_path)
+    def _get_and_encode_image(self, input_image_path: str) -> str:
+        image_path = Path(input_image_path)
         logger.debug(f"Reading and encoding image from {image_path}")
         with open(image_path, 'rb') as image:
             image_b64 = base64.b64encode(image.read()).decode()
@@ -87,8 +87,8 @@ class StableDiffusionGenerator(ImageGenerator):
         logger.debug(f"Task {uuid} status: {status}")
         return response
 
-    async def _get_image_url(self, prompt: str, base_image_path: str) -> str:
-        image = self._get_and_encode_image(base_image_path)
+    async def _get_image_url(self, prompt: str, input_image_path: str) -> str:
+        image = self._get_and_encode_image(input_image_path)
         task_response = await self._create_task(image, prompt)
         uuid = task_response[0]['result']['data']['json'][0]['uuid']
 
@@ -106,10 +106,10 @@ class StableDiffusionGenerator(ImageGenerator):
 
         raise RequestError("Image generation timed out")
 
-    async def generate_and_save_image(self, prompt: str, base_image_path: str, output_path: str) -> str:
+    async def generate_and_save_image(self, prompt: str, input_image_path: str, output_path: str) -> str:
         image_url = self._image_url
         if not image_url:
-            image_url = await self._get_image_url(prompt, base_image_path)
+            image_url = await self._get_image_url(prompt, input_image_path)
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as response:
                 if response.status != 200:

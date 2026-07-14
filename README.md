@@ -106,6 +106,23 @@ uv run main.py
 Instead of logging into your personal Telegram account, the bot uses **Secretary Mode** (Chat Automation). When you connect the bot to your profile via Settings > Chat Automation, the bot receives a `business_connection_id` with the `edit_profile_photo` right. This allows the bot to update your profile photo directly through the Telegram API — no full account access needed.
 
 For video avatars, the bot first ensures a contextual static reference image (using the normal image prompt + image cache, or generating if needed). This reference (not the raw base avatar) is passed to Veo 3.1 Fast as `REFERENCE_2_VIDEO` input and is also used for the video cache key (so different weather/holiday conditions produce different cache entries even with the same action text). The bot then generates a 9:16 video, uses `ffmpeg` to center-crop it to 1:1, truncate to 3 seconds, and strip audio. Telegram requires both a static frame (JPG) and the video file to set a video profile photo. `video_prompt_text` now focuses on action/motion; scene details come from the reference image.
+
+### Background stability via scene references
+
+Purely textual place descriptions (`{place}`, landmarks in weather descriptions) can lead to drifting backgrounds even for a fixed location. The bot now supports a **scene reference image**:
+
+- `/generate_reference` — Using your raw base photo + neutral clear daytime conditions (for the current season) + place, the bot generates a stable background reference. This is the recommended way because it avoids baking in whatever weather happens to be live at the moment.
+- `/upload_reference` — Upload your own pre-generated full scene image (you + desired background).
+- `/clear_reference` — Revert to classic behavior (raw base + full prompt every time).
+
+When a reference is active:
+- The reference image (not the raw base) is passed as the conditioning image to the generator.
+- Prompt preparation de-emphasizes the `{place}` token and appends guidance to keep the background/landmarks/scenery from the reference.
+- This dramatically improves background consistency across weather updates while still allowing clothing, lighting and effects to vary.
+- Re-run `/generate_reference` any time you change location significantly.
+- `/generate_reference` intentionally uses **neutral clear daytime** conditions (current season) rather than live weather. This produces a clean, well-lit base background that is much easier for the model to adapt different weather, lighting, and effects onto.
+
+The raw base image is still required (identity source of truth and for re-baking references).
 ## Hermes / xAI Grok generator (recommended for Grok models)
 
 Set `image_generator=hermes` and/or `video_generator=hermes` to use **real xAI Grok Imagine endpoints** (`api.x.ai/v1/images/edits` and `/videos/generations`) with native Grok models.

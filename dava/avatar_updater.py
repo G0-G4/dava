@@ -34,6 +34,7 @@ class AvatarUpdater:
         hermes_auth_path: str | None = None,
         hermes_xai_image_model: str | None = None,
         xai_auth_path: str | None = None,
+        reference_image_path: str | None = None,
     ):
         connection = self.db.load_connection(user_id)
         if not connection:
@@ -53,11 +54,13 @@ class AvatarUpdater:
         connection_id = connection["connection_id"]
         tg_user_id = connection["user_id"]
 
-        base_image_path = self.db.get_base_image_path(user_id)
-        if not base_image_path:
-            raise RuntimeError("Base image path not found in database.")
+        # Use provided reference (scene) image for conditioning if available; otherwise fall back to raw base.
+        # The raw base is still required as the source of identity.
+        input_image_path = reference_image_path or self.db.get_base_image_path(user_id)
+        if not input_image_path:
+            raise RuntimeError("Input image path not found in database.")
 
-        cache_hash = self.db.compute_cache_hash(user_id, prompt, mode="image")
+        cache_hash = self.db.compute_cache_hash(user_id, prompt, mode="image", reference_image_path=input_image_path)
         cached = self.db.check_cache(user_id, cache_hash, mode="image")
         if cached:
             logger.info(f"User {user_id}: Cache hit, using cached image {cached}")
@@ -77,7 +80,7 @@ class AvatarUpdater:
                 xai_auth_path=xai_auth_path,
             )
             img_path = await generator.generate_and_save_image(
-                prompt, base_image_path, output_path
+                prompt, input_image_path, output_path
             )
 
         logger.debug("deleting old avatar via Bot API")
