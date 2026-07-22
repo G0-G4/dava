@@ -46,8 +46,14 @@ class ActionPaginatorScreen(DavaScreen):
         end = start + self.PAGE_SIZE
         page_items = items[start:end]
 
+        user_id = self.current_user_id()
         for key, value in page_items:
-            label = f"{key}: {value[:40]}{'…' if len(value) > 40 else ''}"
+            date_suffix = ""
+            if self.category == "holidays":
+                md = self.service.get_holiday_date_for_name(user_id, key)
+                if md:
+                    date_suffix = f" [{md}]"
+            label = f"{key}{date_suffix}: {value[:40]}{'…' if len(value) > 40 else ''}"
             btn = Button(label, on_change=self._make_open_editor(key, value))
             self._action_buttons.append(btn)
             self.add_component(btn)

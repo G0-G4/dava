@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from datetime import datetime
 from io import BytesIO
 
@@ -27,6 +28,30 @@ logger = logging.getLogger(__name__)
 
 # Keys under video_actions dict (must match seeded defaults / DB shape).
 VIDEO_ACTION_TYPES = frozenset({"weather", "holidays"})
+
+# MM-DD for custom calendar holiday overrides (holidays config key).
+_HOLIDAY_DATE_RE = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
+
+
+def normalize_holiday_date(mm_dd: str | None) -> str | None:
+    """Normalize user input to MM-DD or empty string.
+
+    Returns:
+        ``""`` for no custom date (standard calendar holiday),
+        ``"MM-DD"`` when valid,
+        ``None`` when invalid.
+    """
+    text = (mm_dd or "").strip()
+    if text == "" or text in ("-", "none", "skip", "."):
+        return ""
+    if _HOLIDAY_DATE_RE.match(text):
+        return text
+    return None
+
+
+def validate_holiday_date(mm_dd: str) -> bool:
+    """Return True if ``mm_dd`` is empty/skip or a valid MM-DD string."""
+    return normalize_holiday_date(mm_dd) is not None
 
 
 class DavaService:
@@ -108,14 +133,63 @@ class DavaService:
         bucket = va.get(category, {})
         return dict(bucket) if isinstance(bucket, dict) else {}
 
-    def apply_video_action(self, user_id: int, action_type: str, key: str, action_text: str) -> str:
+    def load_holiday_date_overrides(self, user_id: int) -> dict[str, str]:
+        """Return effective holidays map: MM-DD → holiday label."""
+        raw = self.get_effective_value(user_id, "holidays") or {}
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                raw = {}
+        if not isinstance(raw, dict):
+            return {}
+        return {str(k): str(v) for k, v in raw.items()}
+
+    def get_holiday_date_for_name(self, user_id: int, name: str) -> str | None:
+        """Reverse-lookup MM-DD for a custom holiday label, if any."""
+        for mm_dd, label in self.load_holiday_date_overrides(user_id).items():
+            if label == name:
+                return mm_dd
+        return None
+
+    def set_holiday_date_for_name(self, user_id: int, name: str, mm_dd: str | None) -> str | None:
+        """Bind holiday label to MM-DD (or clear binding). Returns error text or None."""
+        date_text = normalize_holiday_date(mm_dd)
+        if date_text is None:
+            return "❌ Date must be MM-DD (e.g. 03-08), or `-` / empty for standard holiday"
+        holidays = self.load_holiday_date_overrides(user_id)
+        # Drop previous dates pointing at this name
+        holidays = {k: v for k, v in holidays.items() if v != name}
+        if date_text:
+            holidays[date_text] = name
+        self.db.save_user_config(user_id, "holidays", holidays)
+        return None
+
+    def apply_video_action(
+        self,
+        user_id: int,
+        action_type: str,
+        key: str,
+        action_text: str,
+        *,
+        holiday_date: str | None = None,
+    ) -> str:
         try:
             if action_type not in VIDEO_ACTION_TYPES:
                 return f"❌ Invalid action type `{action_type}`. Use weather or holidays."
+            if action_type == "holidays" and holiday_date is not None:
+                err = self.set_holiday_date_for_name(user_id, key, holiday_date)
+                if err:
+                    return err
             va = self.load_video_actions(user_id)
             va.setdefault(action_type, {})[key] = action_text
             self.db.save_user_config(user_id, "video_actions", va)
-            return f"✅ Set {action_type}/{key} action."
+            extra = ""
+            if action_type == "holidays" and holiday_date is not None:
+                nd = normalize_holiday_date(holiday_date)
+                if nd:
+                    extra = f" (date {nd})"
+            return f"✅ Set {action_type}/{key} action.{extra}"
         except Exception as e:
             return f"❌ Failed: {e}"
 
@@ -129,6 +203,9 @@ class DavaService:
                 if not va.get(action_type):
                     va.pop(action_type, None)
                 self.db.save_user_config(user_id, "video_actions", va)
+                if action_type == "holidays":
+                    # Clear custom calendar binding for this label
+                    self.set_holiday_date_for_name(user_id, key, None)
                 return f"✅ Removed {action_type}/{key}."
             return "Action not found."
         except Exception as e:
