@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from urllib.parse import urlparse
 
@@ -11,59 +10,52 @@ logger = logging.getLogger(__name__)
 
 
 class DavaTelethonTransport(TelethonTransport):
-    """Custom Telethon transport that wraps an existing TelegramClient
-    and sets up the bot command menu on start."""
+    """Custom Telethon transport that wraps an existing TelegramClient."""
 
     def __init__(self, client: TelegramClient, token: str, api_id: int, api_hash: str):
         super().__init__(token, api_id, api_hash)
         self._client = client
 
-    def start(self, application_core) -> None:
-        super().start(application_core)
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(self._setup_menu())
-        except RuntimeError:
-            logger.warning("No running event loop, skipping menu setup")
 
-    async def _setup_menu(self):
-        commands = [
-            ("start", "Start bot"),
-            ("help", "Show help message"),
-            ("settings", "Interactive settings menu (recommended)"),
-            ("update", "Force avatar update now"),
-            ("upload", "Upload base image"),
-            ("upload_reference", "Upload scene reference image (for stable background)"),
-            ("generate_reference", "Generate scene reference (uses neutral clear conditions for stable bg)"),
-            ("clear_reference", "Clear current scene reference"),
-            ("video_mode", "Set video generation mode"),
-            ("schedule", "Show your update schedule"),
-            ("add_time", "Add new update time (HH:MM)"),
-            ("delete_time", "Delete update time (HH:MM)"),
-            ("connection", "Show your business connection"),
-            ("weather", "Show current weather"),
-            ("set_variable", "Set config variable"),
-            ("set_action", "Set video action"),
-            ("delete_action", "Delete video action"),
-        ]
-        admin_commands = [
-            ("logs", "Show recent logs"),
-            ("grant", "Grant access to user"),
-            ("revoke", "Revoke access from user"),
-            ("list_users", "List all users with access"),
-            ("set_global_variable", "Set global config variable"),
-        ]
-        try:
-            await self._client(
-                SetBotCommandsRequest(
-                    scope=BotCommandScopeDefault(),
-                    lang_code="en",
-                    commands=[BotCommand(*cmd) for cmd in commands + admin_commands],
-                )
+async def setup_bot_commands(client: TelegramClient) -> None:
+    """Set the bot command menu. Must be called after client is connected."""
+    commands = [
+        ("start", "Start bot"),
+        ("help", "Show help message"),
+        ("settings", "Interactive settings menu (recommended)"),
+        ("update", "Force avatar update now"),
+        ("upload", "Upload base image"),
+        ("upload_reference", "Upload scene reference image (for stable background)"),
+        ("generate_reference", "Generate scene reference (uses neutral clear conditions for stable bg)"),
+        ("clear_reference", "Clear current scene reference"),
+        ("video_mode", "Set video generation mode"),
+        ("schedule", "Show your update schedule"),
+        ("add_time", "Add new update time (HH:MM)"),
+        ("delete_time", "Delete update time (HH:MM)"),
+        ("connection", "Show your business connection"),
+        ("weather", "Show current weather"),
+        ("set_variable", "Set config variable"),
+        ("set_action", "Set video action"),
+        ("delete_action", "Delete video action"),
+    ]
+    admin_commands = [
+        ("logs", "Show recent logs"),
+        ("grant", "Grant access to user"),
+        ("revoke", "Revoke access from user"),
+        ("list_users", "List all users with access"),
+        ("set_global_variable", "Set global config variable"),
+    ]
+    try:
+        await client(
+            SetBotCommandsRequest(
+                scope=BotCommandScopeDefault(),
+                lang_code="en",
+                commands=[BotCommand(*cmd) for cmd in commands + admin_commands],
             )
-            logger.info("Bot command menu set up successfully")
-        except Exception:
-            logger.warning("Failed to set bot commands", exc_info=True)
+        )
+        logger.info("Bot command menu set up successfully")
+    except Exception:
+        logger.warning("Failed to set bot commands", exc_info=True)
 
 
 def parse_proxy_url(proxy_url: str) -> dict:

@@ -11,7 +11,7 @@ from dava.db import Database
 from dava.logs import setup_logging
 from dava.raw_handlers import RawHandlers
 from dava.service import DavaService
-from dava.transport import DavaTelethonTransport, parse_proxy_url
+from dava.transport import DavaTelethonTransport, parse_proxy_url, setup_bot_commands
 from dava.tuican_app import create_app
 from dava.weather_descriptor import WeatherDescriptor
 
@@ -32,6 +32,12 @@ if __name__ == "__main__":
             client.set_proxy(parse_proxy_url(proxy_url))
         updater.client = client
 
+        # Connect client first so API calls work
+        await client.start(bot_token=config.bot_token)
+
+        # Set bot command menu (requires connected client)
+        await setup_bot_commands(client)
+
         # Raw handlers for photos and business connections
         RawHandlers(client, service)
 
@@ -41,7 +47,7 @@ if __name__ == "__main__":
         # Restore schedules
         service.restore_all_schedules()
 
-        # Start TUIcan (which starts the client and runs until disconnected)
+        # Start TUIcan (transport will reuse the already-connected client)
         app.run()
 
     try:
