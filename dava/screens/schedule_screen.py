@@ -18,7 +18,7 @@ class ScheduleScreen(DavaScreen):
 
         self.time_input = Input[str](
             text="New time",
-            validation_function=self._validate_time_input,
+            validation_function=lambda x: x,
             on_change=self.save_time,
             active_prompt="Enter time (HH:MM UTC): ",
         )
@@ -60,6 +60,10 @@ class ScheduleScreen(DavaScreen):
     async def save_time(self):
         time_str = self.time_input.value
         if time_str is None:
+            return
+        time_str = time_str.strip()
+        if not self.service.validate_time(time_str):
+            await self.backend.send_plain_message(self.update, "❌ Invalid time format. Use HH:MM")
             return
         user_id = self.current_user_id()
         schedule = self.service.db.load_schedule(user_id)
