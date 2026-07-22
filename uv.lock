@@ -360,7 +360,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "telethon", specifier = ">=1.40.0" },
-    { name = "tuican", extras = ["telethon"], git = "https://github.com/G0-G4/TUIcan.git?rev=84ebe6b" },
+    { name = "tuican", extras = ["telethon"], git = "https://github.com/G0-G4/TUIcan.git?rev=8143f5a" },
     { name = "workalendar", specifier = ">=17.0.0" },
 ]
 
@@ -989,7 +989,7 @@ wheels = [
 [[package]]
 name = "tuican"
 version = "0.1.0"
-source = { git = "https://github.com/G0-G4/TUIcan.git?rev=84ebe6b#84ebe6b44b1a25a1a9cf94cffd1da718bd87ca4f" }
+source = { git = "https://github.com/G0-G4/TUIcan.git?rev=8143f5a#8143f5a56f1ce561fe811f8e716db69a5941a680" }
 dependencies = [
     { name = "python-dotenv" },
 ]

@@ -12,7 +12,6 @@ from dava.screens.settings_screen import SettingsScreen
 from dava.screens.schedule_screen import ScheduleScreen
 from dava.screens.admin_globals_screen import AdminGlobalsScreen
 from dava.screens.edit_screen import EditScreen
-from dava.screens.view_full_screen import ViewFullScreen
 from dava.screens.action_screen import AddActionScreen, DeleteActionScreen
 from dava.screens.simple_screens import (
     UpdateScreen,
@@ -109,7 +108,7 @@ def create_app(
     async def check_allowed(update: TuicanUpdate) -> bool:
         user_id = get_user_id(update)
         if not service.db.is_allowed(user_id):
-            await app.backend.send_plain_message(
+            await app.backend.send_notification(
                 update,
                 "⛔ Access not granted. Please contact the admin to get access."
             )

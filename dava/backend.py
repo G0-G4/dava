@@ -1,8 +1,9 @@
 """Custom Telethon backend that uses Markdown parse mode."""
 
+import asyncio
+
 from telethon.client.telegramclient import TelegramClient
 from tuican.backends.telethon_backend import TelethonBackend
-from tuican.keyboard_button import KeyboardButton
 from tuican.update import TuicanUpdate, UpdateKind
 
 
@@ -71,3 +72,21 @@ class DavaTelethonBackend(TelethonBackend):
             message=text,
             parse_mode="markdown",
         )
+
+    async def send_notification(
+        self,
+        update: TuicanUpdate,
+        text: str,
+        delete_after: float = 1.0,
+    ) -> None:
+        message = await self._client.send_message(
+            update.chat_id,
+            message=text,
+            parse_mode="markdown",
+        )
+        if delete_after > 0 and message is not None:
+            chat_id = update.chat_id
+            message_id = message.id
+            asyncio.create_task(
+                self._delete_notification_later(chat_id, message_id, delete_after)
+            )

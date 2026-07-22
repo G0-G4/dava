@@ -4,7 +4,6 @@ from dava.screens.category_screen import CategoryScreen
 from dava.screens.schedule_screen import ScheduleScreen
 from dava.screens.admin_globals_screen import AdminGlobalsScreen
 from dava.screens.edit_screen import EditScreen
-from dava.screens.view_full_screen import ViewFullScreen
 from dava.screens.action_screen import AddActionScreen, DeleteActionScreen
 from dava.screens.video_actions_main_screen import VideoActionsMainScreen
 from dava.screens.action_paginator_screen import ActionPaginatorScreen
@@ -39,7 +38,6 @@ __all__ = [
     "ScheduleScreen",
     "AdminGlobalsScreen",
     "EditScreen",
-    "ViewFullScreen",
     "AddActionScreen",
     "DeleteActionScreen",
     "VideoActionsMainScreen",

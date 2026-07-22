@@ -15,7 +15,6 @@ class CategoryScreen(DavaScreen):
 
         # Buttons will be built dynamically
         self._edit_buttons: list[Button] = []
-        self._view_buttons: list[Button] = []
         self._toggle_buttons: list[Button] = []
         self._action_buttons: list[Button] = []
 
@@ -25,14 +24,11 @@ class CategoryScreen(DavaScreen):
     def _cleanup_buttons(self):
         for btn in self._edit_buttons:
             self.delete_component(btn)
-        for btn in self._view_buttons:
-            self.delete_component(btn)
         for btn in self._toggle_buttons:
             self.delete_component(btn)
         for btn in self._action_buttons:
             self.delete_component(btn)
         self._edit_buttons.clear()
-        self._view_buttons.clear()
         self._toggle_buttons.clear()
         self._action_buttons.clear()
 
@@ -64,11 +60,6 @@ class CategoryScreen(DavaScreen):
                 self._edit_buttons.append(btn)
                 self.add_component(btn)
 
-                if self.service.should_offer_view_full(user_id, key):
-                    view_btn = Button("👁 View full", on_change=self._make_view_full(key))
-                    self._view_buttons.append(view_btn)
-                    self.add_component(view_btn)
-
         if self.category == "🎥 Video":
             manage_btn = Button("🎬 Manage video actions", on_change=self.open_video_actions)
             self._action_buttons.append(manage_btn)
@@ -78,12 +69,6 @@ class CategoryScreen(DavaScreen):
         async def handler():
             from dava.screens.edit_screen import EditScreen
             await self.go_to_screen(EditScreen(self.group, self.service, key))
-        return handler
-
-    def _make_view_full(self, key: str):
-        async def handler():
-            from dava.screens.view_full_screen import ViewFullScreen
-            await self.go_to_screen(ViewFullScreen(self.group, self.service, key))
         return handler
 
     def _make_toggle_video_mode(self, value: str):
@@ -106,8 +91,6 @@ class CategoryScreen(DavaScreen):
         self._build_buttons()
         rows: list = []
         for btn in self._edit_buttons:
-            rows.append([btn])
-        for btn in self._view_buttons:
             rows.append([btn])
         if self._toggle_buttons:
             rows.append(self._toggle_buttons)

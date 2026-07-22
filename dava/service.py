@@ -90,18 +90,6 @@ class DavaService:
             return s[:truncate] + "…"
         return s
 
-    def is_complex_value(self, value) -> bool:
-        if value is None:
-            return False
-        if isinstance(value, (dict, list)):
-            return True
-        if isinstance(value, str) and len(value) > 60:
-            return True
-        return False
-
-    def should_offer_view_full(self, user_id: int, key: str) -> bool:
-        return self.is_complex_value(self.get_effective_value(user_id, key))
-
     def load_video_actions(self, user_id: int) -> dict:
         """Load effective video_actions as a mutable dict copy."""
         va = self.get_effective_value(user_id, "video_actions") or {}
@@ -549,15 +537,6 @@ class DavaService:
             return f"❌ Failed to save reference image: {str(e)}"
 
     @staticmethod
-    def format_long(title: str, value) -> str:
-        if not isinstance(value, str):
-            value = json.dumps(value, ensure_ascii=False, indent=2)
-        text = f"**{title}**:\n```\n{value}\n```"
-        if len(text) <= 4096:
-            return text
-        chunks = [text[i:i + 4096] for i in range(0, len(text), 4096)]
-        return chunks[0]
-
     @staticmethod
     def get_help_text() -> str:
         return """🤖 Avatar Updater Bot Commands:

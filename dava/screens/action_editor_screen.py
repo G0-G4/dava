@@ -67,25 +67,23 @@ class ActionEditorScreen(DavaScreen):
         if new_value is None:
             return
         if not str(new_value).strip():
-            await self.backend.send_plain_message(
-                self.update, "❌ Action description cannot be empty"
-            )
+            await self.notify("❌ Action description cannot be empty")
             return
         user_id = self.current_user_id()
         result = self.service.apply_video_action(
             user_id, self.category, self.key, str(new_value).strip()
         )
         if result.startswith("✅"):
-            await self.backend.send_plain_message(self.update, "✅ Saved")
+            await self.notify("✅ Saved")
         else:
-            await self.backend.send_plain_message(self.update, result)
+            await self.notify(result)
         await self.go_back()
 
     async def do_delete(self):
         user_id = self.current_user_id()
         result = self.service.delete_video_action(user_id, self.category, self.key)
         if result.startswith("✅"):
-            await self.backend.send_plain_message(self.update, "🗑 Deleted")
+            await self.notify("🗑 Deleted")
         else:
-            await self.backend.send_plain_message(self.update, result)
+            await self.notify(result)
         await self.go_back()

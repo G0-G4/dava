@@ -52,9 +52,7 @@ class AddActionScreen(DavaScreen):
         except ValueError:
             parts = text.split()
         if len(parts) < 3 or parts[0] not in ("weather", "holidays"):
-            await self.backend.send_plain_message(
-                self.update,
-                "❌ Invalid format.\n"
+            await self.notify("❌ Invalid format.\n"
                 "Send e.g.:\n"
                 "weather 95 lightning flash, user flinches\n"
                 "holidays \"New Year's Day\" fireworks exploding"
@@ -65,7 +63,7 @@ class AddActionScreen(DavaScreen):
         action_text = " ".join(parts[2:])
         user_id = self.current_user_id()
         result = self.service.apply_video_action(user_id, action_type, key, action_text)
-        await self.backend.send_plain_message(self.update, result)
+        await self.notify(result)
         await self.go_back()
 
 
@@ -111,9 +109,7 @@ class DeleteActionScreen(DavaScreen):
         except ValueError:
             parts = text.split()
         if len(parts) < 2 or parts[0] not in ("weather", "holidays"):
-            await self.backend.send_plain_message(
-                self.update,
-                "❌ Invalid format.\n"
+            await self.notify("❌ Invalid format.\n"
                 "Send e.g.:\n"
                 "weather 95\n"
                 "holidays \"New Year's Day\""
@@ -123,5 +119,5 @@ class DeleteActionScreen(DavaScreen):
         key = parts[1]
         user_id = self.current_user_id()
         result = self.service.delete_video_action(user_id, action_type, key)
-        await self.backend.send_plain_message(self.update, result)
+        await self.notify(result)
         await self.go_back()

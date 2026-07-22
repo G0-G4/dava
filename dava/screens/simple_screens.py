@@ -189,7 +189,7 @@ class GrantScreen(DavaScreen):
 
     async def display(self, update: TuicanUpdate) -> None:
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         await self.display_with_focus(update, self.user_input)
 
@@ -200,26 +200,26 @@ class GrantScreen(DavaScreen):
         try:
             target_user_id = int(user_id_str)
         except ValueError:
-            await self.backend.send_plain_message(self.update, "❌ Invalid user ID")
+            await self.notify("❌ Invalid user ID")
             return
         self.service.db.grant(target_user_id)
         self.service.restore_user_schedule(target_user_id)
-        await self.backend.send_plain_message(self.update, f"✅ Granted access to user {target_user_id}")
+        await self.notify(f"✅ Granted access to user {target_user_id}")
         await self.go_home()
 
     async def on_command(self, args, update):
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         if len(args) >= 1:
             try:
                 target_user_id = int(args[0])
             except ValueError:
-                await self.backend.send_plain_message(update, "❌ Invalid user ID")
+                await self.notify(update=update, text="❌ Invalid user ID")
                 return
             self.service.db.grant(target_user_id)
             self.service.restore_user_schedule(target_user_id)
-            await self.backend.send_plain_message(update, f"✅ Granted access to user {target_user_id}")
+            await self.notify(update=update, text=f"✅ Granted access to user {target_user_id}")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -245,7 +245,7 @@ class RevokeScreen(DavaScreen):
 
     async def display(self, update: TuicanUpdate) -> None:
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         await self.display_with_focus(update, self.user_input)
 
@@ -256,26 +256,26 @@ class RevokeScreen(DavaScreen):
         try:
             target_user_id = int(user_id_str)
         except ValueError:
-            await self.backend.send_plain_message(self.update, "❌ Invalid user ID")
+            await self.notify("❌ Invalid user ID")
             return
         self.service.db.revoke(target_user_id)
         self.service.remove_user_schedule(target_user_id)
-        await self.backend.send_plain_message(self.update, f"✅ Revoked access from user {target_user_id}")
+        await self.notify(f"✅ Revoked access from user {target_user_id}")
         await self.go_home()
 
     async def on_command(self, args, update):
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         if len(args) >= 1:
             try:
                 target_user_id = int(args[0])
             except ValueError:
-                await self.backend.send_plain_message(update, "❌ Invalid user ID")
+                await self.notify(update=update, text="❌ Invalid user ID")
                 return
             self.service.db.revoke(target_user_id)
             self.service.remove_user_schedule(target_user_id)
-            await self.backend.send_plain_message(update, f"✅ Revoked access from user {target_user_id}")
+            await self.notify(update=update, text=f"✅ Revoked access from user {target_user_id}")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -319,10 +319,7 @@ class SetVariableScreen(DavaScreen):
         if key is None:
             return
         if key not in USER_CONFIGURABLE_KEYS:
-            await self.backend.send_plain_message(
-                self.update,
-                f"❌ `{key}` is not a user-configurable variable."
-            )
+            await self.notify(f"❌ `{key}` is not a user-configurable variable.")
             return
         self._pending_key = key
         await self.set_focus(self.value_input)
@@ -334,7 +331,7 @@ class SetVariableScreen(DavaScreen):
             return
         user_id = self.current_user_id()
         self.service.db.save_user_config(user_id, key, value)
-        await self.backend.send_plain_message(self.update, f"✅ {key} set to {value}")
+        await self.notify(f"✅ {key} set to {value}")
         await self.go_home()
 
     async def on_command(self, args, update):
@@ -342,14 +339,11 @@ class SetVariableScreen(DavaScreen):
             name = args[0]
             val = args[1]
             if name not in USER_CONFIGURABLE_KEYS:
-                await self.backend.send_plain_message(
-                    update,
-                    f"❌ `{name}` is not a user-configurable variable."
-                )
+                await self.notify(update=update, text=f"❌ `{name}` is not a user-configurable variable.")
                 return
             user_id = update.user_id or 0
             self.service.db.save_user_config(user_id, name, val)
-            await self.backend.send_plain_message(update, f"✅ {name} set to {val}")
+            await self.notify(update=update, text=f"✅ {name} set to {val}")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -382,7 +376,7 @@ class DeleteVariableScreen(DavaScreen):
             return
         user_id = self.current_user_id()
         self.service.db.delete_user_config_key(user_id, key)
-        await self.backend.send_plain_message(self.update, f"✅ {key} has been deleted")
+        await self.notify(f"✅ {key} has been deleted")
         await self.go_home()
 
     async def on_command(self, args, update):
@@ -390,7 +384,7 @@ class DeleteVariableScreen(DavaScreen):
             name = args[0]
             user_id = update.user_id or 0
             self.service.db.delete_user_config_key(user_id, name)
-            await self.backend.send_plain_message(update, f"✅ {name} has been deleted")
+            await self.notify(update=update, text=f"✅ {name} has been deleted")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -428,7 +422,7 @@ class SetGlobalVariableScreen(DavaScreen):
 
     async def display(self, update: TuicanUpdate) -> None:
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         await self.display_with_focus(update, self.key_input)
 
@@ -437,10 +431,7 @@ class SetGlobalVariableScreen(DavaScreen):
         if key is None:
             return
         if key not in ALL_CONFIGURABLE_KEYS:
-            await self.backend.send_plain_message(
-                self.update,
-                f"❌ `{key}` is not a configurable variable."
-            )
+            await self.notify(f"❌ `{key}` is not a configurable variable.")
             return
         self._pending_key = key
         await self.set_focus(self.value_input)
@@ -453,23 +444,23 @@ class SetGlobalVariableScreen(DavaScreen):
         from dava.config import convert_value
         converted = convert_value(key, value)
         self.service.db.set_global_default(key, converted)
-        await self.backend.send_plain_message(self.update, f"✅ Global default {key} set to {converted}")
+        await self.notify(f"✅ Global default {key} set to {converted}")
         await self.go_home()
 
     async def on_command(self, args, update):
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         if len(args) >= 2:
             name = args[0]
             val = args[1]
             if name not in ALL_CONFIGURABLE_KEYS:
-                await self.backend.send_plain_message(update, f"❌ `{name}` is not a configurable variable.")
+                await self.notify(update=update, text=f"❌ `{name}` is not a configurable variable.")
                 return
             from dava.config import convert_value
             converted = convert_value(name, val)
             self.service.db.set_global_default(name, converted)
-            await self.backend.send_plain_message(update, f"✅ Global default {name} set to {converted}")
+            await self.notify(update=update, text=f"✅ Global default {name} set to {converted}")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -495,7 +486,7 @@ class DeleteGlobalVariableScreen(DavaScreen):
 
     async def display(self, update: TuicanUpdate) -> None:
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         await self.display_with_focus(update, self.key_input)
 
@@ -504,17 +495,17 @@ class DeleteGlobalVariableScreen(DavaScreen):
         if key is None:
             return
         self.service.db.delete_global_default(key)
-        await self.backend.send_plain_message(self.update, f"✅ Global default {key} has been deleted")
+        await self.notify(f"✅ Global default {key} has been deleted")
         await self.go_home()
 
     async def on_command(self, args, update):
         if not self.service.is_admin(update.user_id or 0):
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
+            await self.notify(update=update, text="⛔ This command is for admins only.")
             return
         if len(args) >= 1:
             name = args[0]
             self.service.db.delete_global_default(name)
-            await self.backend.send_plain_message(update, f"✅ Global default {name} has been deleted")
+            await self.notify(update=update, text=f"✅ Global default {name} has been deleted")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -555,20 +546,20 @@ class VideoModeScreen(DavaScreen):
     async def set_auto(self):
         user_id = self.current_user_id()
         self.service.db.save_user_config(user_id, "video_mode", "auto")
-        await self.backend.send_plain_message(self.update, "✅ video_mode set to auto")
+        await self.notify("✅ video_mode set to auto")
         await self.go_home()
 
     async def set_never(self):
         user_id = self.current_user_id()
         self.service.db.save_user_config(user_id, "video_mode", "never")
-        await self.backend.send_plain_message(self.update, "✅ video_mode set to never")
+        await self.notify("✅ video_mode set to never")
         await self.go_home()
 
     async def on_command(self, args, update):
         user_id = update.user_id or 0
         if len(args) >= 1 and args[0] in ("auto", "never"):
             self.service.db.save_user_config(user_id, "video_mode", args[0])
-            await self.backend.send_plain_message(update, f"✅ video_mode set to {args[0]}")
+            await self.notify(update=update, text=f"✅ video_mode set to {args[0]}")
             await self.go_home()
         else:
             await self.on_start(update)
@@ -604,9 +595,7 @@ class SetActionScreen(DavaScreen):
         except ValueError:
             parts = text.split()
         if len(parts) < 3 or parts[0] not in ("weather", "holidays"):
-            await self.backend.send_plain_message(
-                self.update,
-                "Usage: /set_action <weather|holidays> <code_or_name> <action description>\n"
+            await self.notify("Usage: /set_action <weather|holidays> <code_or_name> <action description>\n"
                 "Example: /set_action weather 95 \"lightning flash, user flinches\""
             )
             return
@@ -615,7 +604,7 @@ class SetActionScreen(DavaScreen):
         action_text = " ".join(parts[2:])
         user_id = self.current_user_id()
         result = self.service.apply_video_action(user_id, action_type, key, action_text)
-        await self.backend.send_plain_message(self.update, result)
+        await self.notify(result)
         await self.go_home()
 
     async def on_command(self, args, update):
@@ -624,11 +613,11 @@ class SetActionScreen(DavaScreen):
             key = args[1]
             action_text = " ".join(args[2:])
             if action_type not in ("weather", "holidays"):
-                await self.backend.send_plain_message(update, "Invalid action type. Use weather or holidays.")
+                await self.notify(update=update, text="Invalid action type. Use weather or holidays.")
                 return
             user_id = update.user_id or 0
             result = self.service.apply_video_action(user_id, action_type, key, action_text)
-            await self.backend.send_plain_message(update, result)
+            await self.notify(update=update, text=result)
             await self.go_home()
         else:
             await self.on_start(update)
@@ -664,9 +653,7 @@ class DeleteActionScreen(DavaScreen):
         except ValueError:
             parts = text.split()
         if len(parts) < 2 or parts[0] not in ("weather", "holidays"):
-            await self.backend.send_plain_message(
-                self.update,
-                "Usage: /delete_action <weather|holidays> <code_or_name>\n"
+            await self.notify("Usage: /delete_action <weather|holidays> <code_or_name>\n"
                 "Example: /delete_action holidays \"New Year's Day\""
             )
             return
@@ -674,7 +661,7 @@ class DeleteActionScreen(DavaScreen):
         key = parts[1]
         user_id = self.current_user_id()
         result = self.service.delete_video_action(user_id, action_type, key)
-        await self.backend.send_plain_message(self.update, result)
+        await self.notify(result)
         await self.go_home()
 
     async def on_command(self, args, update):
@@ -682,11 +669,11 @@ class DeleteActionScreen(DavaScreen):
             action_type = args[0]
             key = args[1]
             if action_type not in ("weather", "holidays"):
-                await self.backend.send_plain_message(update, "Invalid action type. Use weather or holidays.")
+                await self.notify(update=update, text="Invalid action type. Use weather or holidays.")
                 return
             user_id = update.user_id or 0
             result = self.service.delete_video_action(user_id, action_type, key)
-            await self.backend.send_plain_message(update, result)
+            await self.notify(update=update, text=result)
             await self.go_home()
         else:
             await self.on_start(update)

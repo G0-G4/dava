@@ -1,3 +1,4 @@
+import json
 from typing import ClassVar
 
 from tuican.components import Button, Input, ScreenGroup
@@ -32,13 +33,26 @@ class EditScreen(DavaScreen):
             [self.cancel_btn],
         ]
 
+    def _format_current_value(self, value) -> str:
+        if value is None:
+            return "(not set)"
+        if isinstance(value, str):
+            return value
+        return json.dumps(value, ensure_ascii=False, indent=2)
+
     async def display(self, update: TuicanUpdate) -> None:
         user_id = get_user_id(update)
         if self.is_global:
-            current_value = str(self.service.get_admin_value(self.key) or "")
+            raw = self.service.get_admin_value(self.key)
         else:
-            current_value = self.service.get_effective_display(user_id, self.key, truncate=200)
-        self.message = f"✏️ Editing **{self.key}**\nCurrent value:\n```\n{current_value}\n```\n\nSend the new value. Type /cancel to abort."
+            raw = self.service.get_effective_value(user_id, self.key)
+        current_value = self._format_current_value(raw)
+        self.message = (
+            f"✏️ Editing **{self.key}**\n"
+            f"Current value (copy, edit, send):\n"
+            f"```\n{current_value}\n```\n\n"
+            f"Send the new value below."
+        )
         await self.display_with_focus(update, self.input_field)
 
     async def save_value(self):
@@ -54,9 +68,6 @@ class EditScreen(DavaScreen):
         else:
             self.service.db.save_user_config(user_id, self.key, new_value)
             if self.key in ("place", "latitude", "longitude"):
-                await self.backend.send_plain_message(
-                    self.update,
-                    "📍 Location updated. To stabilize backgrounds for this place, run /generate_reference or /upload_reference."
-                )
+                await self.notify("📍 Location updated. To stabilize backgrounds for this place, run /generate_reference or /upload_reference.")
 
         await self.go_back()

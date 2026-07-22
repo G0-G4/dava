@@ -58,7 +58,7 @@ class ActionAddScreen(DavaScreen):
         if key is None:
             return
         if not key.strip():
-            await self.backend.send_plain_message(self.update, "❌ Key cannot be empty")
+            await self.notify("❌ Key cannot be empty")
             return
         # Move focus so description input accepts the next message
         await self.set_focus(self.value_input)
@@ -69,16 +69,14 @@ class ActionAddScreen(DavaScreen):
         if key is None or not key.strip() or value is None:
             return
         if not value.strip():
-            await self.backend.send_plain_message(
-                self.update, "❌ Action description cannot be empty"
-            )
+            await self.notify("❌ Action description cannot be empty")
             return
         user_id = self.current_user_id()
         result = self.service.apply_video_action(
             user_id, self.category, key.strip(), value.strip()
         )
         if result.startswith("✅"):
-            await self.backend.send_plain_message(self.update, f"✅ Added {self.category}/{key}")
+            await self.notify(f"✅ Added {self.category}/{key}")
         else:
-            await self.backend.send_plain_message(self.update, result)
+            await self.notify(result)
         await self.go_back()

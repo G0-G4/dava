@@ -2,7 +2,7 @@ from typing import ClassVar
 
 from tuican.components import Button, ScreenGroup
 
-from dava.config import ADMIN_SETTING_CATEGORIES, ALL_CONFIGURABLE_KEYS
+from dava.config import ADMIN_SETTING_CATEGORIES
 from dava.screens.base import DavaScreen
 from dava.service import DavaService
 
@@ -14,7 +14,6 @@ class AdminGlobalsScreen(DavaScreen):
         self.back_btn = Button("« Back", on_change=self.go_back)
 
         self._edit_buttons: list[Button] = []
-        self._view_buttons: list[Button] = []
 
         super().__init__(group, service)
         self.add_component(self.back_btn)
@@ -22,10 +21,7 @@ class AdminGlobalsScreen(DavaScreen):
     def _build_buttons(self):
         for btn in self._edit_buttons:
             self.delete_component(btn)
-        for btn in self._view_buttons:
-            self.delete_component(btn)
         self._edit_buttons = []
-        self._view_buttons = []
 
         for cat_name, keys in ADMIN_SETTING_CATEGORIES.items():
             for key in keys:
@@ -33,21 +29,10 @@ class AdminGlobalsScreen(DavaScreen):
                 self._edit_buttons.append(btn)
                 self.add_component(btn)
 
-                if self.service.is_complex_value(self.service.get_admin_value(key)):
-                    view_btn = Button("👁 View full", on_change=self._make_view_full(key))
-                    self._view_buttons.append(view_btn)
-                    self.add_component(view_btn)
-
     def _make_edit(self, key: str):
         async def handler():
             from dava.screens.edit_screen import EditScreen
             await self.go_to_screen(EditScreen(self.group, self.service, key, is_global=True))
-        return handler
-
-    def _make_view_full(self, key: str):
-        async def handler():
-            from dava.screens.view_full_screen import ViewFullScreen
-            await self.go_to_screen(ViewFullScreen(self.group, self.service, key, is_global=True))
         return handler
 
     def get_layout(self):
@@ -56,8 +41,6 @@ class AdminGlobalsScreen(DavaScreen):
         self._build_buttons()
         rows: list = []
         for btn in self._edit_buttons:
-            rows.append([btn])
-        for btn in self._view_buttons:
             rows.append([btn])
         rows.append([self.back_btn])
         return rows
