@@ -19,13 +19,6 @@ class AdminGlobalsScreen(DavaScreen):
         super().__init__(group, service)
         self.add_component(self.back_btn)
 
-    async def on_start(self, update):
-        if not self.is_admin():
-            await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
-            return
-        await super().on_start(update)
-        self._build_buttons()
-
     def _build_buttons(self):
         for btn in self._edit_buttons:
             self.delete_component(btn)
@@ -58,6 +51,9 @@ class AdminGlobalsScreen(DavaScreen):
         return handler
 
     def get_layout(self):
+        if not self.is_admin():
+            return [[self.back_btn]]
+        self._build_buttons()
         rows: list = []
         for btn in self._edit_buttons:
             rows.append([btn])

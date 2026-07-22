@@ -20,25 +20,39 @@ class CategoryScreen(DavaScreen):
         self._action_buttons: list[Button] = []
 
         super().__init__(group, service)
+        self.add_component(self.back_btn)
 
-    async def on_start(self, update):
-        await super().on_start(update)
-        self._build_buttons()
+    def _cleanup_buttons(self):
+        for btn in self._edit_buttons:
+            self.delete_component(btn)
+        for btn in self._view_buttons:
+            self.delete_component(btn)
+        for btn in self._toggle_buttons:
+            self.delete_component(btn)
+        for btn in self._action_buttons:
+            self.delete_component(btn)
+        self._edit_buttons.clear()
+        self._view_buttons.clear()
+        self._toggle_buttons.clear()
+        self._action_buttons.clear()
 
     def _build_buttons(self):
+        self._cleanup_buttons()
         user_id = self.current_user_id()
         keys = self.service.get_category_keys(self.category)
 
         for key in keys:
             if key == "video_mode":
-                # Special toggle buttons
                 current = self.service.get_effective_value(user_id, "video_mode") or "auto"
                 auto_text = "✅ auto" if current == "auto" else "auto"
                 never_text = "✅ never" if current == "never" else "never"
-                self._toggle_buttons.append(Button(auto_text, on_change=self._make_toggle_video_mode("auto")))
-                self._toggle_buttons.append(Button(never_text, on_change=self._make_toggle_video_mode("never")))
+                btn_auto = Button(auto_text, on_change=self._make_toggle_video_mode("auto"))
+                btn_never = Button(never_text, on_change=self._make_toggle_video_mode("never"))
+                self._toggle_buttons.extend([btn_auto, btn_never])
+                self.add_component(btn_auto)
+                self.add_component(btn_never)
             elif key == "video_actions":
-                pass  # handled specially below
+                pass
             else:
                 edit_label = f"✏️ Edit {key}"
                 if key == "video_prompt_text":
@@ -55,7 +69,6 @@ class CategoryScreen(DavaScreen):
                     self._view_buttons.append(view_btn)
                     self.add_component(view_btn)
 
-        # Video category special buttons
         if self.category == "🎥 Video":
             edit_va_btn = Button("✏️ Edit video_actions (full JSON)", on_change=self._make_edit("video_actions"))
             self._action_buttons.append(edit_va_btn)
@@ -106,6 +119,7 @@ class CategoryScreen(DavaScreen):
         await self.go_to_screen(DeleteActionScreen(self.group, self.service))
 
     def get_layout(self):
+        self._build_buttons()
         rows: list = []
         for btn in self._edit_buttons:
             rows.append([btn])

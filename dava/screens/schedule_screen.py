@@ -28,10 +28,6 @@ class ScheduleScreen(DavaScreen):
         self.add_component(self.add_time_btn)
         self.add_component(self.time_input)
 
-    async def on_start(self, update):
-        await super().on_start(update)
-        self._build_delete_buttons()
-
     def _build_delete_buttons(self):
         # Remove old buttons from registry
         for btn in self._delete_buttons:
@@ -78,6 +74,7 @@ class ScheduleScreen(DavaScreen):
             await self.backend.send_plain_message(self.update, "⏰ Time already exists in schedule")
 
     def get_layout(self):
+        self._build_delete_buttons()
         rows: list = []
         for btn in self._delete_buttons:
             rows.append([btn])

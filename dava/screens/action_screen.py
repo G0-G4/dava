@@ -2,6 +2,7 @@ import shlex
 from typing import ClassVar
 
 from tuican.components import Button, Input, ScreenGroup
+from tuican.update import TuicanUpdate
 
 from dava.screens.base import DavaScreen
 from dava.service import DavaService
@@ -39,8 +40,8 @@ class AddActionScreen(DavaScreen):
             [self.cancel_btn],
         ]
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
         await self.set_focus(self.input_field)
 
     async def save_action(self):
@@ -99,8 +100,8 @@ class DeleteActionScreen(DavaScreen):
             [self.cancel_btn],
         ]
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
         await self.set_focus(self.input_field)
 
     async def delete_action(self):

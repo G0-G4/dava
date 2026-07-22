@@ -3,6 +3,7 @@ import shlex
 from typing import ClassVar
 
 from tuican.components import Button, Input, ScreenGroup
+from tuican.update import TuicanUpdate
 
 from dava.config import (
     ALL_CONFIGURABLE_KEYS,
@@ -32,11 +33,11 @@ class UpdateScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         user_id = self.current_user_id()
         result = await self.service.update_avatar(user_id)
         self.message = result
-        await super().on_start(update)
+        await super().display(update)
 
 
 class WeatherScreen(OneShotScreen):
@@ -45,10 +46,10 @@ class WeatherScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         user_id = self.current_user_id()
         self.message = self.service.get_weather_text(user_id)
-        await super().on_start(update)
+        await super().display(update)
 
 
 class LogsScreen(OneShotScreen):
@@ -57,15 +58,15 @@ class LogsScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         if not self.is_admin():
             self.message = "⛔ This command is for admins only."
-            await super().on_start(update)
+            await super().display(update)
             return
         parts = update.message_text.split() if update.message_text else []
         num = int(parts[1]) if len(parts) > 1 else 50
         self.message = self.service.get_logs(num)
-        await super().on_start(update)
+        await super().display(update)
 
 
 class ConnectionScreen(OneShotScreen):
@@ -74,10 +75,10 @@ class ConnectionScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         user_id = self.current_user_id()
         self.message = self.service.get_connection_text(user_id)
-        await super().on_start(update)
+        await super().display(update)
 
 
 class UsersScreen(OneShotScreen):
@@ -86,13 +87,13 @@ class UsersScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         if not self.is_admin():
             self.message = "⛔ This command is for admins only."
-            await super().on_start(update)
+            await super().display(update)
             return
         self.message = self.service.get_users_text()
-        await super().on_start(update)
+        await super().display(update)
 
 
 class HelpScreen(OneShotScreen):
@@ -101,9 +102,9 @@ class HelpScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         self.message = self.service.get_help_text()
-        await super().on_start(update)
+        await super().display(update)
 
 
 class UploadScreen(OneShotScreen):
@@ -112,12 +113,12 @@ class UploadScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         self.message = (
             "📸 Please send your base image (photo).\n\n"
             "The bot will use it as the identity source for avatar generation."
         )
-        await super().on_start(update)
+        await super().display(update)
 
 
 class UploadReferenceScreen(OneShotScreen):
@@ -126,13 +127,13 @@ class UploadReferenceScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         self.message = (
             "🖼️ Please send a full scene reference photo (ideally you + the desired background/place).\n"
             "This will be used as a visual prior for stable backgrounds in future generations.\n"
             "/generate_reference is recommended (it uses neutral clear conditions)."
         )
-        await super().on_start(update)
+        await super().display(update)
 
 
 class GenerateReferenceScreen(OneShotScreen):
@@ -141,7 +142,7 @@ class GenerateReferenceScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         user_id = self.current_user_id()
         try:
             ref_path = await self.service.generate_and_save_reference(user_id)
@@ -152,7 +153,7 @@ class GenerateReferenceScreen(OneShotScreen):
             )
         except Exception as e:
             self.message = f"❌ Failed to generate reference: {e}"
-        await super().on_start(update)
+        await super().display(update)
 
 
 class ClearReferenceScreen(OneShotScreen):
@@ -161,11 +162,11 @@ class ClearReferenceScreen(OneShotScreen):
     def __init__(self, group: ScreenGroup, service: DavaService):
         super().__init__(group, service)
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         user_id = self.current_user_id()
         self.service.db.clear_reference_image(user_id)
         self.message = "✅ Scene reference cleared. Future updates will use your base image + full prompt again."
-        await super().on_start(update)
+        await super().display(update)
 
 
 class GrantScreen(DavaScreen):
@@ -186,11 +187,11 @@ class GrantScreen(DavaScreen):
     def get_layout(self):
         return [[self.user_input], [self.cancel_btn]]
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         if not self.is_admin():
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().on_start(update)
+        await super().display(update)
         await self.set_focus(self.user_input)
 
     async def do_grant(self):
@@ -243,11 +244,11 @@ class RevokeScreen(DavaScreen):
     def get_layout(self):
         return [[self.user_input], [self.cancel_btn]]
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         if not self.is_admin():
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().on_start(update)
+        await super().display(update)
         await self.set_focus(self.user_input)
 
     async def do_revoke(self):
@@ -312,8 +313,8 @@ class SetVariableScreen(DavaScreen):
             [self.cancel_btn],
         ]
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
         await self.set_focus(self.key_input)
 
     async def on_key_entered(self):
@@ -373,8 +374,8 @@ class DeleteVariableScreen(DavaScreen):
     def get_layout(self):
         return [[self.key_input], [self.cancel_btn]]
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
         await self.set_focus(self.key_input)
 
     async def do_delete(self):
@@ -427,11 +428,11 @@ class SetGlobalVariableScreen(DavaScreen):
             [self.cancel_btn],
         ]
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         if not self.is_admin():
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().on_start(update)
+        await super().display(update)
         await self.set_focus(self.key_input)
 
     async def on_key_entered(self):
@@ -493,11 +494,11 @@ class DeleteGlobalVariableScreen(DavaScreen):
     def get_layout(self):
         return [[self.key_input], [self.cancel_btn]]
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         if not self.is_admin():
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().on_start(update)
+        await super().display(update)
         await self.set_focus(self.key_input)
 
     async def do_delete(self):
@@ -550,8 +551,8 @@ class VideoModeScreen(DavaScreen):
             "• `never` — always generate static images"
         )
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
 
     async def set_auto(self):
         user_id = self.current_user_id()
@@ -593,8 +594,8 @@ class SetActionScreen(DavaScreen):
     def get_layout(self):
         return [[self.action_input], [self.cancel_btn]]
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
         await self.set_focus(self.action_input)
 
     async def do_set(self):
@@ -654,8 +655,8 @@ class DeleteActionScreen(DavaScreen):
     def get_layout(self):
         return [[self.action_input], [self.cancel_btn]]
 
-    async def on_start(self, update):
-        await super().on_start(update)
+    async def display(self, update: TuicanUpdate) -> None:
+        await super().display(update)
         await self.set_focus(self.action_input)
 
     async def do_delete(self):

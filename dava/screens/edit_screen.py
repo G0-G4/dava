@@ -32,14 +32,14 @@ class EditScreen(DavaScreen):
             [self.cancel_btn],
         ]
 
-    async def on_start(self, update):
+    async def display(self, update: TuicanUpdate) -> None:
         user_id = get_user_id(update)
         if self.is_global:
             current_value = str(self.service.get_admin_value(self.key) or "")
         else:
             current_value = self.service.get_effective_display(user_id, self.key, truncate=200)
         self.message = f"✏️ Editing **{self.key}**\nCurrent value:\n```\n{current_value}\n```\n\nSend the new value. Type /cancel to abort."
-        await super().on_start(update)
+        await super().display(update)
         await self.set_focus(self.input_field)
 
     async def save_value(self):
