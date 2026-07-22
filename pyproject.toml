@@ -14,7 +14,7 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "telethon>=1.40.0",
-    "tuican",
+    "tuican[telethon] @ git+https://github.com/G0-G4/TUIcan.git@8f28aca",
     "workalendar>=17.0.0",
 ]
 
