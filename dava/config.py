@@ -67,7 +67,6 @@ USER_SETTING_CATEGORIES: dict[str, list[str]] = {
     "📍 Location": ["place", "latitude", "longitude", "timezone"],
     "✍️ Prompts": ["prompt_text"],
     "🎥 Video": ["video_mode", "video_prompt_text", "video_actions"],
-    "🌦️ Overrides": ["weather", "holidays"],
 }
 
 # For admins: globals are shown in a dedicated category. Keep a parallel grouping.

@@ -76,7 +76,7 @@ Video settings are seeded with sensible defaults in the database and can be conf
 | Video actions | `video_actions` | dict | Maps weather codes and holiday names to action descriptions for the prompt |
 | Video prompt | `video_prompt_text` | string | Template for video prompts (primarily action/motion). A contextual reference image (generated or cached from the normal static prompt) is passed to the video model and used for the video cache key. Default: `"{action}"` |
 
-**Recommended**: Use **/settings** — it now shows a clean grouped summary of your current values and opens category menus (📍 Location, ✍️ Prompts, 🎥 Video, 📅 Schedule, 🌦️ Overrides, 👑 Admin). Far fewer buttons and values are visible immediately.
+**Recommended**: Use **/settings** — it shows a clean grouped summary of your current values and opens category menus (📍 Location, ✍️ Prompts, 🎥 Video, 📅 Schedule, 👑 Admin). Weather/holiday video triggers are edited under 🎥 Video → Manage video actions.
 
 For video actions you can also use the convenient helpers (no giant JSON paste required):
 - `/set_action weather|holiday <code> "action description here"`
