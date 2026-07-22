@@ -70,21 +70,9 @@ class CategoryScreen(DavaScreen):
                     self.add_component(view_btn)
 
         if self.category == "🎥 Video":
-            edit_va_btn = Button("✏️ Edit video_actions (full JSON)", on_change=self._make_edit("video_actions"))
-            self._action_buttons.append(edit_va_btn)
-            self.add_component(edit_va_btn)
-
-            view_va_btn = Button("👁 View full", on_change=self._make_view_full("video_actions"))
-            self._action_buttons.append(view_va_btn)
-            self.add_component(view_va_btn)
-
-            add_action_btn = Button("➕ Add action", on_change=self.open_add_action)
-            self._action_buttons.append(add_action_btn)
-            self.add_component(add_action_btn)
-
-            delete_action_btn = Button("🗑 Delete action", on_change=self.open_delete_action)
-            self._action_buttons.append(delete_action_btn)
-            self.add_component(delete_action_btn)
+            manage_btn = Button("🎬 Manage video actions", on_change=self.open_video_actions)
+            self._action_buttons.append(manage_btn)
+            self.add_component(manage_btn)
 
     def _make_edit(self, key: str):
         async def handler():
@@ -110,13 +98,9 @@ class CategoryScreen(DavaScreen):
                 await self.display(update)
         return handler
 
-    async def open_add_action(self):
-        from dava.screens.action_screen import AddActionScreen
-        await self.go_to_screen(AddActionScreen(self.group, self.service))
-
-    async def open_delete_action(self):
-        from dava.screens.action_screen import DeleteActionScreen
-        await self.go_to_screen(DeleteActionScreen(self.group, self.service))
+    async def open_video_actions(self):
+        from dava.screens.video_actions_main_screen import VideoActionsMainScreen
+        await self.go_to_screen(VideoActionsMainScreen(self.group, self.service))
 
     def get_layout(self):
         self._build_buttons()
