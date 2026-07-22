@@ -22,6 +22,7 @@ class ActionEditorScreen(DavaScreen):
     ):
         self.category = category
         self.key = key
+        self.current_value = value
 
         self.back_btn = Button("« Back to list", on_change=self.go_back)
         self.delete_btn = Button("🗑 Delete", on_change=self.do_delete)
@@ -34,7 +35,7 @@ class ActionEditorScreen(DavaScreen):
         )
         self.value_input.value = value
 
-        super().__init__(group, service, message=f"**Edit {category} action**\n\nKey: `{key}`")
+        super().__init__(group, service)
         self.add_component(self.back_btn)
         self.add_component(self.delete_btn)
         self.add_component(self.value_input)
@@ -46,7 +47,18 @@ class ActionEditorScreen(DavaScreen):
             [self.back_btn],
         ]
 
+    def _build_message(self) -> str:
+        label = "weather" if self.category == "weather" else "holiday"
+        return (
+            f"**Edit {label} action**\n"
+            f"Key: `{self.key}`\n\n"
+            f"Current description (copy, edit, send):\n"
+            f"```\n{self.current_value}\n```\n\n"
+            f"Send the new description below."
+        )
+
     async def display(self, update: TuicanUpdate) -> None:
+        self.message = self._build_message()
         await self.display_with_focus(update, self.value_input)
 
     async def save_value(self):
