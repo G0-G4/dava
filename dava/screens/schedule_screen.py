@@ -47,7 +47,6 @@ class ScheduleScreen(DavaScreen):
                 schedule.remove(time_str)
                 self.service.db.save_schedule(user_id, schedule)
                 self.service.restart_scheduler(user_id)
-                await self.backend.send_plain_message(self.update, f"⏰ Removed {time_str} from schedule")
                 self._build_delete_buttons()
                 await self.display(self.update)
         return handler
@@ -58,7 +57,6 @@ class ScheduleScreen(DavaScreen):
             return
         time_str = time_str.strip()
         if not self.service.validate_time(time_str):
-            await self.backend.send_plain_message(self.update, "❌ Invalid time format. Use HH:MM")
             self.time_input.value = None
             return
         user_id = self.current_user_id()
@@ -67,12 +65,10 @@ class ScheduleScreen(DavaScreen):
             schedule.append(time_str)
             self.service.db.save_schedule(user_id, schedule)
             self.service.restart_scheduler(user_id)
-            await self.backend.send_plain_message(self.update, f"⏰ Added {time_str} to schedule")
             self.time_input.value = None
             self._build_delete_buttons()
             await self.display(self.update)
         else:
-            await self.backend.send_plain_message(self.update, "⏰ Time already exists in schedule")
             self.time_input.value = None
 
     def get_layout(self):
