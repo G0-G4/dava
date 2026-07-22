@@ -82,6 +82,7 @@ class ScheduleScreen(DavaScreen):
         rows: list = []
         for btn in self._delete_buttons:
             rows.append([btn])
+        rows.append([self.time_input])
         rows.append([self.add_time_btn])
         rows.append([self.back_btn])
         return rows
