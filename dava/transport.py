@@ -6,6 +6,8 @@ from telethon.tl.functions.bots import SetBotCommandsRequest
 from telethon.tl.types import BotCommand, BotCommandScopeDefault
 from tuican.transports.telethon_transport import TelethonTransport
 
+from dava.backend import DavaTelethonBackend
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,6 +22,9 @@ class DavaTelethonTransport(TelethonTransport):
     def __init__(self, client: TelegramClient, token: str, api_id: int, api_hash: str):
         super().__init__(token, api_id, api_hash)
         self._client = client
+
+    def default_backend(self):
+        return DavaTelethonBackend(self._client)
 
     def start(self, application_core) -> None:
         """Register TUIcan handlers.  Client must already be connected."""
