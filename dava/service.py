@@ -568,9 +568,9 @@ class DavaService:
 /help - Show this message
 
 👑 Admin:
+/users - Manage users (list, grant, revoke)
 /grant <user_id> - Grant access
 /revoke <user_id> - Revoke access
-/list_users - List all users
 /set_global_variable - Set global default
 /logs - Show recent logs"""
 

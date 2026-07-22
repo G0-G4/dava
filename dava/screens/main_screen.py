@@ -21,8 +21,6 @@ class MainScreen(DavaScreen):
         # Admin buttons (conditionally rendered)
         self.logs_btn = Button("📋 Logs", on_change=self.open_logs)
         self.users_btn = Button("👥 Users", on_change=self.open_users)
-        self.grant_btn = Button("✅ Grant", on_change=self.open_grant)
-        self.revoke_btn = Button("❌ Revoke", on_change=self.open_revoke)
 
         components = [
             self.settings_btn,
@@ -34,8 +32,6 @@ class MainScreen(DavaScreen):
             self.help_btn,
             self.logs_btn,
             self.users_btn,
-            self.grant_btn,
-            self.revoke_btn,
         ]
         super().__init__(group, service, message="🤖 Dynamic Avatar Bot\nChoose an action:")
         for c in components:
@@ -50,7 +46,6 @@ class MainScreen(DavaScreen):
         ]
         if self.is_admin():
             rows.append([self.logs_btn, self.users_btn])
-            rows.append([self.grant_btn, self.revoke_btn])
         return rows
 
     async def open_settings(self):
@@ -86,13 +81,5 @@ class MainScreen(DavaScreen):
         await self.go_to_screen(LogsScreen(self.group, self.service))
 
     async def open_users(self):
-        from dava.screens.simple_screens import UsersScreen
+        from dava.screens.users_screen import UsersScreen
         await self.go_to_screen(UsersScreen(self.group, self.service))
-
-    async def open_grant(self):
-        from dava.screens.simple_screens import GrantScreen
-        await self.go_to_screen(GrantScreen(self.group, self.service))
-
-    async def open_revoke(self):
-        from dava.screens.simple_screens import RevokeScreen
-        await self.go_to_screen(RevokeScreen(self.group, self.service))

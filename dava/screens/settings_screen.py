@@ -12,7 +12,6 @@ class SettingsScreen(DavaScreen):
 
     def __init__(self, group: ScreenGroup, service: DavaService):
         self.close_btn = Button("❌ Close", on_change=self.close_settings)
-        self.refresh_btn = Button("🔄 Refresh", on_change=self.refresh_settings)
         self.schedule_btn = Button("📅 Schedule", on_change=self.open_schedule)
         self.admin_btn = Button("👑 Admin / Globals", on_change=self.open_admin)
 
@@ -20,7 +19,7 @@ class SettingsScreen(DavaScreen):
         self._category_buttons: list[Button] = []
 
         super().__init__(group, service)
-        for btn in (self.close_btn, self.refresh_btn, self.schedule_btn, self.admin_btn):
+        for btn in (self.close_btn, self.schedule_btn, self.admin_btn):
             self.add_component(btn)
         self._build_category_buttons()
 
@@ -52,7 +51,7 @@ class SettingsScreen(DavaScreen):
         rows.append([self.schedule_btn])
         if self.is_admin():
             rows.append([self.admin_btn])
-        rows.append([self.refresh_btn, self.close_btn])
+        rows.append([self.close_btn])
         return rows
 
     @property
@@ -62,12 +61,6 @@ class SettingsScreen(DavaScreen):
 
     async def close_settings(self):
         await self.go_home()
-
-    async def refresh_settings(self):
-        # Just re-display to refresh the summary
-        update = self.update
-        if update is not None:
-            await self.display(update)
 
     async def open_schedule(self):
         from dava.screens.schedule_screen import ScheduleScreen

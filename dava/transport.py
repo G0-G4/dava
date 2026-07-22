@@ -78,9 +78,10 @@ async def setup_bot_commands(client: TelegramClient) -> None:
     ]
     admin_commands = [
         ("logs", "Show recent logs"),
-        ("grant", "Grant access to user"),
-        ("revoke", "Revoke access from user"),
-        ("list_users", "List all users with access"),
+        ("users", "Manage users (list / grant / revoke)"),
+        ("list_users", "Manage users (list / grant / revoke)"),
+        ("grant", "Grant access (or use /users)"),
+        ("revoke", "Revoke access (or use /users)"),
         ("set_global_variable", "Set global config variable"),
     ]
     try:

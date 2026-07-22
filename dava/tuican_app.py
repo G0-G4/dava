@@ -13,19 +13,17 @@ from dava.screens.schedule_screen import ScheduleScreen
 from dava.screens.admin_globals_screen import AdminGlobalsScreen
 from dava.screens.edit_screen import EditScreen
 from dava.screens.action_screen import AddActionScreen, DeleteActionScreen
+from dava.screens.users_screen import GrantUserScreen, RevokeUserScreen, UsersScreen
 from dava.screens.simple_screens import (
     UpdateScreen,
     WeatherScreen,
     LogsScreen,
     ConnectionScreen,
-    UsersScreen,
     HelpScreen,
     UploadScreen,
     UploadReferenceScreen,
     GenerateReferenceScreen,
     ClearReferenceScreen,
-    GrantScreen,
-    RevokeScreen,
     SetVariableScreen,
     DeleteVariableScreen,
     SetGlobalVariableScreen,
@@ -74,9 +72,10 @@ def create_screen_factories(service: DavaService) -> dict[str, type[Screen]]:
         "set_action": make_group(SetActionScreen),
         "delete_action": make_group(DeleteActionScreen),
         "connection": make_group(ConnectionScreen),
-        "grant": make_group(GrantScreen),
-        "revoke": make_group(RevokeScreen),
+        "grant": make_group(GrantUserScreen),
+        "revoke": make_group(RevokeUserScreen),
         "list_users": make_group(UsersScreen),
+        "users": make_group(UsersScreen),
         "logs": make_group(LogsScreen),
         "set_variable": make_group(SetVariableScreen),
         "delete_variable": make_group(DeleteVariableScreen),
