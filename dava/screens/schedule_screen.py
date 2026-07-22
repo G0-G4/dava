@@ -11,13 +11,12 @@ class ScheduleScreen(DavaScreen):
 
     def __init__(self, group: ScreenGroup, service: DavaService):
         self.back_btn = Button("« Back", on_change=self.go_back)
-        self.add_time_btn = Button("➕ Add time (HH:MM)", on_change=self.start_add_time)
 
         # Delete buttons built dynamically
         self._delete_buttons: list[Button] = []
 
         self.time_input = Input[str](
-            text="New time",
+            text="➕ Add time (HH:MM UTC)",
             validation_function=lambda x: x,
             on_change=self.save_time,
             active_prompt="Enter time (HH:MM UTC): ",
@@ -25,7 +24,6 @@ class ScheduleScreen(DavaScreen):
 
         super().__init__(group, service)
         self.add_component(self.back_btn)
-        self.add_component(self.add_time_btn)
         self.add_component(self.time_input)
 
     def _build_delete_buttons(self):
@@ -54,9 +52,6 @@ class ScheduleScreen(DavaScreen):
                 await self.display(self.update)
         return handler
 
-    async def start_add_time(self):
-        await self.set_focus(self.time_input)
-
     async def save_time(self):
         time_str = self.time_input.value
         if time_str is None:
@@ -64,6 +59,7 @@ class ScheduleScreen(DavaScreen):
         time_str = time_str.strip()
         if not self.service.validate_time(time_str):
             await self.backend.send_plain_message(self.update, "❌ Invalid time format. Use HH:MM")
+            self.time_input.value = None
             return
         user_id = self.current_user_id()
         schedule = self.service.db.load_schedule(user_id)
@@ -72,10 +68,12 @@ class ScheduleScreen(DavaScreen):
             self.service.db.save_schedule(user_id, schedule)
             self.service.restart_scheduler(user_id)
             await self.backend.send_plain_message(self.update, f"⏰ Added {time_str} to schedule")
+            self.time_input.value = None
             self._build_delete_buttons()
             await self.display(self.update)
         else:
             await self.backend.send_plain_message(self.update, "⏰ Time already exists in schedule")
+            self.time_input.value = None
 
     def get_layout(self):
         self._build_delete_buttons()
@@ -83,7 +81,6 @@ class ScheduleScreen(DavaScreen):
         for btn in self._delete_buttons:
             rows.append([btn])
         rows.append([self.time_input])
-        rows.append([self.add_time_btn])
         rows.append([self.back_btn])
         return rows
 
