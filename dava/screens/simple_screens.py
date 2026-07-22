@@ -319,7 +319,9 @@ class SetVariableScreen(DavaScreen):
 
     async def on_key_entered(self):
         key = self.key_input.value
-        if key is None or key not in USER_CONFIGURABLE_KEYS:
+        if key is None:
+            return
+        if key not in USER_CONFIGURABLE_KEYS:
             await self.backend.send_plain_message(
                 self.update,
                 f"❌ `{key}` is not a user-configurable variable."
@@ -437,7 +439,9 @@ class SetGlobalVariableScreen(DavaScreen):
 
     async def on_key_entered(self):
         key = self.key_input.value
-        if key is None or key not in ALL_CONFIGURABLE_KEYS:
+        if key is None:
+            return
+        if key not in ALL_CONFIGURABLE_KEYS:
             await self.backend.send_plain_message(
                 self.update,
                 f"❌ `{key}` is not a configurable variable."

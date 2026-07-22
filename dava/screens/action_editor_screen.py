@@ -51,12 +51,18 @@ class ActionEditorScreen(DavaScreen):
         await self.set_focus(self.value_input)
 
     async def save_value(self):
+        # on_change fires only after a committed message; None means not submitted
         new_value = self.value_input.value
         if new_value is None:
             return
+        if not str(new_value).strip():
+            await self.backend.send_plain_message(
+                self.update, "❌ Action description cannot be empty"
+            )
+            return
         user_id = self.current_user_id()
         result = self.service.apply_video_action(
-            user_id, self.category, self.key, new_value
+            user_id, self.category, self.key, str(new_value).strip()
         )
         if result.startswith("✅"):
             await self.backend.send_plain_message(self.update, "✅ Saved")
