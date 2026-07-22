@@ -34,6 +34,12 @@ class UpdateScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
+        # Immediate feedback — generation can take a long time
+        await self.notify(
+            update=update,
+            text="🔄 Avatar update scheduled…",
+            delete_after=2.0,
+        )
         user_id = update.user_id or 0
         result = await self.service.update_avatar(user_id)
         self.message = result
