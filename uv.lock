@@ -337,6 +337,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "telethon" },
+    { name = "tuican", extra = ["telethon"] },
     { name = "workalendar" },
 ]
 
@@ -359,6 +360,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "telethon", specifier = ">=1.40.0" },
+    { name = "tuican", extras = ["telethon"], git = "https://github.com/G0-G4/TUIcan.git?rev=2bafc79" },
     { name = "workalendar", specifier = ">=17.0.0" },
 ]
 
@@ -982,6 +984,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f5/f2/946ea3ca34740ea3bcb6033e44635e35058da5b1f349f99ba7c5b05b7296/telethon-1.43.2.tar.gz", hash = "sha256:794912eb546eacfe351ca7bf097b029f963da95985a07490653a99bf98219957", size = 687158, upload-time = "2026-04-20T08:06:42.044Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/37/85/53197127a93fd23a0ec7367a125939cb8c6cc23f0f9f2c0a04692f3ab51d/telethon-1.43.2-py3-none-any.whl", hash = "sha256:7e8a23a08f8474f3ac0c46847f3edd4e965b4452de0ba868b089acbad8041aa4", size = 773609, upload-time = "2026-04-20T08:06:44.496Z" },
+]
+
+[[package]]
+name = "tuican"
+version = "0.1.0"
+source = { git = "https://github.com/G0-G4/TUIcan.git?rev=2bafc79#2bafc793466da7f6a46bd6e20ea913213363b930" }
+dependencies = [
+    { name = "python-dotenv" },
+]
+
+[package.optional-dependencies]
+telethon = [
+    { name = "telethon" },
 ]
 
 [[package]]
