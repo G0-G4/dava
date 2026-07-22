@@ -588,13 +588,13 @@ class DavaService:
         logs = "\n".join(get_recent_logs(num))[-4096:]
         return logs
 
-    def get_weather_text(self, user_id: int) -> str:
+    async def get_weather_text(self, user_id: int) -> str:
         lat = self.get_effective_value(user_id, "latitude")
         lon = self.get_effective_value(user_id, "longitude")
         tz = self.get_effective_value(user_id, "timezone")
         weather_override = self.get_effective_value(user_id, "weather")
         try:
-            weather = self.weather_descriptor.get_forecast(
+            weather = await self.weather_descriptor.get_forecast(
                 latitude=float(lat) if lat else None,
                 longitude=float(lon) if lon else None,
                 timezone=tz,

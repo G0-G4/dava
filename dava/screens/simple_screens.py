@@ -48,7 +48,7 @@ class WeatherScreen(OneShotScreen):
 
     async def display(self, update: TuicanUpdate) -> None:
         user_id = update.user_id or 0
-        self.message = self.service.get_weather_text(user_id)
+        self.message = await self.service.get_weather_text(user_id)
         await super().display(update)
 
 
