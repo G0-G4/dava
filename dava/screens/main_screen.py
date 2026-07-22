@@ -24,7 +24,22 @@ class MainScreen(DavaScreen):
         self.grant_btn = Button("✅ Grant", on_change=self.open_grant)
         self.revoke_btn = Button("❌ Revoke", on_change=self.open_revoke)
 
+        components = [
+            self.settings_btn,
+            self.update_btn,
+            self.weather_btn,
+            self.upload_btn,
+            self.schedule_btn,
+            self.connection_btn,
+            self.help_btn,
+            self.logs_btn,
+            self.users_btn,
+            self.grant_btn,
+            self.revoke_btn,
+        ]
         super().__init__(group, service, message="🤖 Dynamic Avatar Bot\nChoose an action:")
+        for c in components:
+            self.add_component(c)
 
     def get_layout(self):
         rows = [

@@ -17,6 +17,7 @@ class AdminGlobalsScreen(DavaScreen):
         self._view_buttons: list[Button] = []
 
         super().__init__(group, service)
+        self.add_component(self.back_btn)
 
     async def on_start(self, update):
         if not self.is_admin():

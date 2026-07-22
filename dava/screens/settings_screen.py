@@ -20,6 +20,8 @@ class SettingsScreen(DavaScreen):
         self._category_buttons: list[Button] = []
 
         super().__init__(group, service)
+        for btn in (self.close_btn, self.refresh_btn, self.schedule_btn, self.admin_btn):
+            self.add_component(btn)
         self._build_category_buttons()
 
     def _build_category_buttons(self):
