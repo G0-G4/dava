@@ -1,6 +1,7 @@
 from typing import ClassVar
 
 from tuican.components import Button, Input, ScreenGroup
+from tuican.update import TuicanUpdate
 
 from dava.screens.base import DavaScreen
 from dava.service import DavaService
