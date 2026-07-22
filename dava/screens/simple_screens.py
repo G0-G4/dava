@@ -34,7 +34,7 @@ class UpdateScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        user_id = self.current_user_id()
+        user_id = update.user_id or 0
         result = await self.service.update_avatar(user_id)
         self.message = result
         await super().display(update)
@@ -47,7 +47,7 @@ class WeatherScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        user_id = self.current_user_id()
+        user_id = update.user_id or 0
         self.message = self.service.get_weather_text(user_id)
         await super().display(update)
 
@@ -59,7 +59,7 @@ class LogsScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        if not self.is_admin():
+        if not self.service.is_admin(update.user_id or 0):
             self.message = "⛔ This command is for admins only."
             await super().display(update)
             return
@@ -76,7 +76,7 @@ class ConnectionScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        user_id = self.current_user_id()
+        user_id = update.user_id or 0
         self.message = self.service.get_connection_text(user_id)
         await super().display(update)
 
@@ -88,7 +88,7 @@ class UsersScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        if not self.is_admin():
+        if not self.service.is_admin(update.user_id or 0):
             self.message = "⛔ This command is for admins only."
             await super().display(update)
             return
@@ -143,7 +143,7 @@ class GenerateReferenceScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        user_id = self.current_user_id()
+        user_id = update.user_id or 0
         try:
             ref_path = await self.service.generate_and_save_reference(user_id)
             self.message = (
@@ -163,7 +163,7 @@ class ClearReferenceScreen(OneShotScreen):
         super().__init__(group, service)
 
     async def display(self, update: TuicanUpdate) -> None:
-        user_id = self.current_user_id()
+        user_id = update.user_id or 0
         self.service.db.clear_reference_image(user_id)
         self.message = "✅ Scene reference cleared. Future updates will use your base image + full prompt again."
         await super().display(update)
@@ -188,7 +188,7 @@ class GrantScreen(DavaScreen):
         return [[self.user_input], [self.cancel_btn]]
 
     async def display(self, update: TuicanUpdate) -> None:
-        if not self.is_admin():
+        if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
         await super().display(update)
@@ -245,7 +245,7 @@ class RevokeScreen(DavaScreen):
         return [[self.user_input], [self.cancel_btn]]
 
     async def display(self, update: TuicanUpdate) -> None:
-        if not self.is_admin():
+        if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
         await super().display(update)
@@ -429,7 +429,7 @@ class SetGlobalVariableScreen(DavaScreen):
         ]
 
     async def display(self, update: TuicanUpdate) -> None:
-        if not self.is_admin():
+        if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
         await super().display(update)
@@ -495,7 +495,7 @@ class DeleteGlobalVariableScreen(DavaScreen):
         return [[self.key_input], [self.cancel_btn]]
 
     async def display(self, update: TuicanUpdate) -> None:
-        if not self.is_admin():
+        if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
         await super().display(update)
