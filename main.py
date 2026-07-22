@@ -47,8 +47,9 @@ if __name__ == "__main__":
         # Restore schedules
         service.restore_all_schedules()
 
-        # Start TUIcan (transport will reuse the already-connected client)
-        app.run()
+        # Register TUIcan handlers and wait for disconnect
+        app._transport.start(app)
+        await app._transport.run_async()
 
     try:
         asyncio.run(main())
