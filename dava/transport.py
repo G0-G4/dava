@@ -27,7 +27,6 @@ class DavaTelethonTransport(TelethonTransport):
         return DavaTelethonBackend(self._client)
 
     def start(self, application_core) -> None:
-        """Register TUIcan handlers.  Client must already be connected."""
         self._application_core = application_core
         self._client.add_event_handler(
             self._on_new_message, events.NewMessage
@@ -35,7 +34,11 @@ class DavaTelethonTransport(TelethonTransport):
         self._client.add_event_handler(
             self._on_callback_query, events.CallbackQuery
         )
-        logger.debug("TelethonTransport handlers registered")
+        logger.info(
+            "TelethonTransport handlers registered on client %s (connected=%s)",
+            self._client,
+            self._client.is_connected(),
+        )
 
     def run(self) -> None:
         """Blocking is not supported inside an async context.

@@ -61,6 +61,8 @@ class RawHandlers:
         @self.client.on(events.NewMessage())
         async def handle_photo_upload(event):
             user_id = event.chat_id
+            text = event.message.text if event.message else None
+            logger.debug("Raw NewMessage: user_id=%s text=%r photo=%s", user_id, text, bool(event.photo))
             if not event.photo:
                 return
             if not self.service.db.is_allowed(user_id):
