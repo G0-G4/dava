@@ -25,6 +25,9 @@ from dava.weather_codes import codes as weather_codes
 
 logger = logging.getLogger(__name__)
 
+# Keys under video_actions dict (must match seeded defaults / DB shape).
+VIDEO_ACTION_TYPES = frozenset({"weather", "holidays"})
+
 
 class DavaService:
     def __init__(
@@ -73,8 +76,9 @@ class DavaService:
             try:
                 n = len(val)
                 if key == "video_actions":
-                    w = len(val.get("weather", {}))
-                    h = len(val.get("holidays", {}))
+                    va = self.load_video_actions(user_id)
+                    w = len(va.get("weather", {}))
+                    h = len(va.get("holidays", {}))
                     return f"dict ({w} weather + {h} holiday actions)"
                 return f"dict ({n} keys)"
             except Exception:
@@ -98,13 +102,29 @@ class DavaService:
     def should_offer_view_full(self, user_id: int, key: str) -> bool:
         return self.is_complex_value(self.get_effective_value(user_id, key))
 
+    def load_video_actions(self, user_id: int) -> dict:
+        """Load effective video_actions as a mutable dict copy."""
+        va = self.get_effective_value(user_id, "video_actions") or {}
+        if isinstance(va, str):
+            try:
+                va = json.loads(va)
+            except Exception:
+                va = {}
+        if not isinstance(va, dict):
+            return {}
+        return {k: (dict(v) if isinstance(v, dict) else v) for k, v in va.items()}
+
+    def get_video_actions_category(self, user_id: int, category: str) -> dict[str, str]:
+        """Return the weather/holidays map for a video_actions category."""
+        va = self.load_video_actions(user_id)
+        bucket = va.get(category, {})
+        return dict(bucket) if isinstance(bucket, dict) else {}
+
     def apply_video_action(self, user_id: int, action_type: str, key: str, action_text: str) -> str:
         try:
-            va = self.get_effective_value(user_id, "video_actions") or {}
-            if isinstance(va, str):
-                va = json.loads(va)
-            if not isinstance(va, dict):
-                va = {}
+            if action_type not in VIDEO_ACTION_TYPES:
+                return f"❌ Invalid action type `{action_type}`. Use weather or holidays."
+            va = self.load_video_actions(user_id)
             va.setdefault(action_type, {})[key] = action_text
             self.db.save_user_config(user_id, "video_actions", va)
             return f"✅ Set {action_type}/{key} action."
@@ -113,10 +133,10 @@ class DavaService:
 
     def delete_video_action(self, user_id: int, action_type: str, key: str) -> str:
         try:
-            va = self.get_effective_value(user_id, "video_actions") or {}
-            if isinstance(va, str):
-                va = json.loads(va)
-            if isinstance(va, dict) and action_type in va and key in va[action_type]:
+            if action_type not in VIDEO_ACTION_TYPES:
+                return f"❌ Invalid action type `{action_type}`. Use weather or holidays."
+            va = self.load_video_actions(user_id)
+            if action_type in va and key in va[action_type]:
                 del va[action_type][key]
                 if not va.get(action_type):
                     va.pop(action_type, None)
@@ -196,14 +216,9 @@ class DavaService:
                 text_lines.append(f"• {k}{ind}: {disp}")
 
             if cat == "🎥 Video":
-                va = self.get_effective_value(user_id, "video_actions") or {}
-                if isinstance(va, str):
-                    try:
-                        va = json.loads(va)
-                    except Exception:
-                        va = {}
-                w = len(va.get("weather", {})) if isinstance(va, dict) else 0
-                h = len(va.get("holidays", {})) if isinstance(va, dict) else 0
+                va = self.load_video_actions(user_id)
+                w = len(va.get("weather", {}))
+                h = len(va.get("holidays", {}))
                 text_lines.append(f"\nvideo_actions: {w} weather + {h} holiday entries")
                 text_lines.append("Use buttons below or /set_action / /delete_action for quick edits.")
 
@@ -396,18 +411,16 @@ class DavaService:
         if video_mode == "never":
             return False, None
 
-        video_actions = self.get_effective_value(user_id, "video_actions") or {}
-        if isinstance(video_actions, str):
-            video_actions = json.loads(video_actions)
+        video_actions = self.load_video_actions(user_id)
 
         holidays = self.get_effective_value(user_id, "holidays")
         holiday = self.holiday_checker.get_today_holiday(holidays)
 
-        holiday_actions = video_actions.get("holidays", {}) if isinstance(video_actions, dict) else {}
+        holiday_actions = video_actions.get("holidays", {})
         if holiday and holiday in holiday_actions:
             return True, str(weather.get("weather_code", "")) if weather else None
 
-        weather_actions = video_actions.get("weather", {}) if isinstance(video_actions, dict) else {}
+        weather_actions = video_actions.get("weather", {})
         if weather:
             weather_code = str(weather.get("weather_code", ""))
             if weather_code in weather_actions:
@@ -424,16 +437,14 @@ class DavaService:
             weather = await self._get_weather(user_id) or {}
         holiday = self.holiday_checker.get_today_holiday(holidays)
 
-        video_actions = self.get_effective_value(user_id, "video_actions") or {}
-        if isinstance(video_actions, str):
-            video_actions = json.loads(video_actions)
+        video_actions = self.load_video_actions(user_id)
 
         action = ""
         if holiday:
-            holiday_actions = video_actions.get("holidays", {}) if isinstance(video_actions, dict) else {}
+            holiday_actions = video_actions.get("holidays", {})
             action = holiday_actions.get(holiday, "")
         if not action and weather_code:
-            weather_actions = video_actions.get("weather", {}) if isinstance(video_actions, dict) else {}
+            weather_actions = video_actions.get("weather", {})
             action = weather_actions.get(weather_code, "")
 
         weather = {**weather, "place": place, "action": action}
@@ -562,8 +573,8 @@ class DavaService:
 ⚙️ Settings:
 /settings — Browse & edit by categories (📍 Location, ✍️ Prompts, 🎥 Video, 📅 Schedule, etc.)
 /set_variable KEY VALUE — Direct set (power users)
-/set_action <weather|holiday> CODE "action text" — Easy edit for video triggers
-/delete_action <weather|holiday> CODE — Remove a video action
+/set_action <weather|holidays> CODE "action text" — Easy edit for video triggers
+/delete_action <weather|holidays> CODE — Remove a video action
 /cancel — Abort any pending value input
 
 🔄 Updates:

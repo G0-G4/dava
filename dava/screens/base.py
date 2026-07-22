@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import ClassVar
 
-from tuican.components import Screen, ScreenGroup
+from tuican.components import MessageHandlingComponent, Screen, ScreenGroup
 from tuican.update import TuicanUpdate, get_user_id
 
 from dava.service import DavaService
@@ -28,6 +28,21 @@ class DavaScreen(Screen, ABC):
 
     def is_admin(self) -> bool:
         return self.service.is_admin(self.current_user_id())
+
+    async def display_with_focus(
+        self,
+        update: TuicanUpdate,
+        focus_component: MessageHandlingComponent,
+    ) -> None:
+        """Render after ensuring a default input focus.
+
+        Focus is applied only when nothing is currently accepting messages, and
+        always *before* render so the active prompt matches message routing.
+        Redisplays after the user toggles inputs therefore keep their choice.
+        """
+        if self._active_message_component is None:
+            await self.set_focus(focus_component)
+        await super().display(update)
 
     async def on_start(self, update: TuicanUpdate) -> None:
         await self.display(update)

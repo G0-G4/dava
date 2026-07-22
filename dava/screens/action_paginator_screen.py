@@ -7,7 +7,7 @@ from dava.service import DavaService
 
 
 class ActionPaginatorScreen(DavaScreen):
-    """Paginated list of video actions for a category (weather/holiday)."""
+    """Paginated list of video actions for a category (weather/holidays)."""
 
     description: ClassVar[str] = "Action List"
     PAGE_SIZE: ClassVar[int] = 7
@@ -16,7 +16,7 @@ class ActionPaginatorScreen(DavaScreen):
         self,
         group: ScreenGroup,
         service: DavaService,
-        category: str,  # "weather" or "holiday"
+        category: str,  # "weather" or "holidays"
         page: int = 0,
     ):
         self.category = category
@@ -31,14 +31,7 @@ class ActionPaginatorScreen(DavaScreen):
 
     def _get_actions(self) -> dict[str, str]:
         user_id = self.current_user_id()
-        actions = self.service.get_effective_value(user_id, "video_actions") or {}
-        if isinstance(actions, str):
-            import json as _json
-            try:
-                actions = _json.loads(actions)
-            except Exception:
-                actions = {}
-        return actions.get(self.category, {}) if isinstance(actions, dict) else {}
+        return self.service.get_video_actions_category(user_id, self.category)
 
     def _build_page_buttons(self):
         # Cleanup old buttons
@@ -105,7 +98,12 @@ class ActionPaginatorScreen(DavaScreen):
     def message(self) -> str | None:
         actions = self._get_actions()
         total = len(actions)
+        cat_label = "🌦️ Weather" if self.category == "weather" else "🎉 Holiday"
+        if total == 0:
+            return (
+                f"**{cat_label} actions** (empty)\n"
+                "No actions yet. Go back and use ➕ Add."
+            )
         start = self.page * self.PAGE_SIZE + 1
         end = min((self.page + 1) * self.PAGE_SIZE, total)
-        cat_label = "🌦️ Weather" if self.category == "weather" else "🎉 Holiday"
         return f"**{cat_label} actions** ({start}–{end} of {total})\nTap an action to edit or delete it."

@@ -191,8 +191,7 @@ class GrantScreen(DavaScreen):
         if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().display(update)
-        await self.set_focus(self.user_input)
+        await self.display_with_focus(update, self.user_input)
 
     async def do_grant(self):
         user_id_str = self.user_input.value
@@ -248,8 +247,7 @@ class RevokeScreen(DavaScreen):
         if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().display(update)
-        await self.set_focus(self.user_input)
+        await self.display_with_focus(update, self.user_input)
 
     async def do_revoke(self):
         user_id_str = self.user_input.value
@@ -314,8 +312,7 @@ class SetVariableScreen(DavaScreen):
         ]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.key_input)
+        await self.display_with_focus(update, self.key_input)
 
     async def on_key_entered(self):
         key = self.key_input.value
@@ -377,8 +374,7 @@ class DeleteVariableScreen(DavaScreen):
         return [[self.key_input], [self.cancel_btn]]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.key_input)
+        await self.display_with_focus(update, self.key_input)
 
     async def do_delete(self):
         key = self.key_input.value
@@ -434,8 +430,7 @@ class SetGlobalVariableScreen(DavaScreen):
         if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().display(update)
-        await self.set_focus(self.key_input)
+        await self.display_with_focus(update, self.key_input)
 
     async def on_key_entered(self):
         key = self.key_input.value
@@ -502,8 +497,7 @@ class DeleteGlobalVariableScreen(DavaScreen):
         if not self.service.is_admin(update.user_id or 0):
             await self.backend.send_plain_message(update, "⛔ This command is for admins only.")
             return
-        await super().display(update)
-        await self.set_focus(self.key_input)
+        await self.display_with_focus(update, self.key_input)
 
     async def do_delete(self):
         key = self.key_input.value
@@ -588,7 +582,7 @@ class SetActionScreen(DavaScreen):
             text="Action",
             validation_function=lambda x: x,
             on_change=self.do_set,
-            active_prompt="Enter action (weather|holiday code text): ",
+            active_prompt="Enter action (weather|holidays code text): ",
         )
         self.cancel_btn = Button("❌ Cancel", on_change=self.go_home)
         super().__init__(group, service, message="Set a video action")
@@ -599,8 +593,7 @@ class SetActionScreen(DavaScreen):
         return [[self.action_input], [self.cancel_btn]]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.action_input)
+        await self.display_with_focus(update, self.action_input)
 
     async def do_set(self):
         text = self.action_input.value
@@ -610,10 +603,10 @@ class SetActionScreen(DavaScreen):
             parts = shlex.split(text)
         except ValueError:
             parts = text.split()
-        if len(parts) < 3 or parts[0] not in ("weather", "holiday"):
+        if len(parts) < 3 or parts[0] not in ("weather", "holidays"):
             await self.backend.send_plain_message(
                 self.update,
-                "Usage: /set_action <weather|holiday> <code_or_name> <action description>\n"
+                "Usage: /set_action <weather|holidays> <code_or_name> <action description>\n"
                 "Example: /set_action weather 95 \"lightning flash, user flinches\""
             )
             return
@@ -630,8 +623,8 @@ class SetActionScreen(DavaScreen):
             action_type = args[0]
             key = args[1]
             action_text = " ".join(args[2:])
-            if action_type not in ("weather", "holiday"):
-                await self.backend.send_plain_message(update, "Invalid action type. Use weather or holiday.")
+            if action_type not in ("weather", "holidays"):
+                await self.backend.send_plain_message(update, "Invalid action type. Use weather or holidays.")
                 return
             user_id = update.user_id or 0
             result = self.service.apply_video_action(user_id, action_type, key, action_text)
@@ -649,7 +642,7 @@ class DeleteActionScreen(DavaScreen):
             text="Action to delete",
             validation_function=lambda x: x,
             on_change=self.do_delete,
-            active_prompt="Enter action to delete (weather|holiday code): ",
+            active_prompt="Enter action to delete (weather|holidays code): ",
         )
         self.cancel_btn = Button("❌ Cancel", on_change=self.go_home)
         super().__init__(group, service, message="Delete a video action")
@@ -660,8 +653,7 @@ class DeleteActionScreen(DavaScreen):
         return [[self.action_input], [self.cancel_btn]]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.action_input)
+        await self.display_with_focus(update, self.action_input)
 
     async def do_delete(self):
         text = self.action_input.value
@@ -671,11 +663,11 @@ class DeleteActionScreen(DavaScreen):
             parts = shlex.split(text)
         except ValueError:
             parts = text.split()
-        if len(parts) < 2 or parts[0] not in ("weather", "holiday"):
+        if len(parts) < 2 or parts[0] not in ("weather", "holidays"):
             await self.backend.send_plain_message(
                 self.update,
-                "Usage: /delete_action <weather|holiday> <code_or_name>\n"
-                "Example: /delete_action holiday \"New Year's Day\""
+                "Usage: /delete_action <weather|holidays> <code_or_name>\n"
+                "Example: /delete_action holidays \"New Year's Day\""
             )
             return
         action_type = parts[0]
@@ -689,8 +681,8 @@ class DeleteActionScreen(DavaScreen):
         if len(args) >= 2:
             action_type = args[0]
             key = args[1]
-            if action_type not in ("weather", "holiday"):
-                await self.backend.send_plain_message(update, "Invalid action type. Use weather or holiday.")
+            if action_type not in ("weather", "holidays"):
+                await self.backend.send_plain_message(update, "Invalid action type. Use weather or holidays.")
                 return
             user_id = update.user_id or 0
             result = self.service.delete_video_action(user_id, action_type, key)

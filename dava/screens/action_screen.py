@@ -26,10 +26,10 @@ class AddActionScreen(DavaScreen):
             message="➕ Adding a video action.\n\n"
                     "Send in this format:\n"
                     "weather <code> <action text>\n"
-                    "holiday \"name with spaces\" <action text>\n\n"
+                    "holidays \"name with spaces\" <action text>\n\n"
                     "Examples:\n"
                     "weather 95 lightning flash, user flinches\n"
-                    "holiday \"New Year's Day\" fireworks, user cheers",
+                    "holidays \"New Year's Day\" fireworks, user cheers",
         )
         self.add_component(self.input_field)
         self.add_component(self.cancel_btn)
@@ -41,8 +41,7 @@ class AddActionScreen(DavaScreen):
         ]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.input_field)
+        await self.display_with_focus(update, self.input_field)
 
     async def save_action(self):
         text = self.input_field.value
@@ -52,13 +51,13 @@ class AddActionScreen(DavaScreen):
             parts = shlex.split(text)
         except ValueError:
             parts = text.split()
-        if len(parts) < 3 or parts[0] not in ("weather", "holiday"):
+        if len(parts) < 3 or parts[0] not in ("weather", "holidays"):
             await self.backend.send_plain_message(
                 self.update,
                 "❌ Invalid format.\n"
                 "Send e.g.:\n"
                 "weather 95 lightning flash, user flinches\n"
-                "holiday \"New Year's Day\" fireworks exploding"
+                "holidays \"New Year's Day\" fireworks exploding"
             )
             return
         action_type = parts[0]
@@ -88,7 +87,7 @@ class DeleteActionScreen(DavaScreen):
             message="🗑 Deleting a video action.\n\n"
                     "Send in this format:\n"
                     "weather <code>\n"
-                    "holiday \"name with spaces\"\n\n"
+                    "holidays \"name with spaces\"\n\n"
                     "Example: weather 95",
         )
         self.add_component(self.input_field)
@@ -101,8 +100,7 @@ class DeleteActionScreen(DavaScreen):
         ]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.input_field)
+        await self.display_with_focus(update, self.input_field)
 
     async def delete_action(self):
         text = self.input_field.value
@@ -112,13 +110,13 @@ class DeleteActionScreen(DavaScreen):
             parts = shlex.split(text)
         except ValueError:
             parts = text.split()
-        if len(parts) < 2 or parts[0] not in ("weather", "holiday"):
+        if len(parts) < 2 or parts[0] not in ("weather", "holidays"):
             await self.backend.send_plain_message(
                 self.update,
                 "❌ Invalid format.\n"
                 "Send e.g.:\n"
                 "weather 95\n"
-                "holiday \"New Year's Day\""
+                "holidays \"New Year's Day\""
             )
             return
         action_type = parts[0]

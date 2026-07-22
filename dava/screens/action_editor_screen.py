@@ -47,8 +47,7 @@ class ActionEditorScreen(DavaScreen):
         ]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.value_input)
+        await self.display_with_focus(update, self.value_input)
 
     async def save_value(self):
         # on_change fires only after a committed message; None means not submitted

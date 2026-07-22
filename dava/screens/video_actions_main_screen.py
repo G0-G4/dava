@@ -38,7 +38,7 @@ class VideoActionsMainScreen(DavaScreen):
 
     async def open_holiday_list(self):
         from dava.screens.action_paginator_screen import ActionPaginatorScreen
-        await self.go_to_screen(ActionPaginatorScreen(self.group, self.service, "holiday"))
+        await self.go_to_screen(ActionPaginatorScreen(self.group, self.service, "holidays"))
 
     async def open_add_weather(self):
         from dava.screens.action_add_screen import ActionAddScreen
@@ -46,4 +46,4 @@ class VideoActionsMainScreen(DavaScreen):
 
     async def open_add_holiday(self):
         from dava.screens.action_add_screen import ActionAddScreen
-        await self.go_to_screen(ActionAddScreen(self.group, self.service, "holiday"))
+        await self.go_to_screen(ActionAddScreen(self.group, self.service, "holidays"))

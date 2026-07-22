@@ -39,8 +39,7 @@ class EditScreen(DavaScreen):
         else:
             current_value = self.service.get_effective_display(user_id, self.key, truncate=200)
         self.message = f"✏️ Editing **{self.key}**\nCurrent value:\n```\n{current_value}\n```\n\nSend the new value. Type /cancel to abort."
-        await super().display(update)
-        await self.set_focus(self.input_field)
+        await self.display_with_focus(update, self.input_field)
 
     async def save_value(self):
         user_id = self.current_user_id()

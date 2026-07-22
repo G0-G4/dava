@@ -16,12 +16,13 @@ class ActionAddScreen(DavaScreen):
         self,
         group: ScreenGroup,
         service: DavaService,
-        category: str,  # "weather" or "holiday"
+        category: str,  # "weather" or "holidays"
     ):
         self.category = category
         self.back_btn = Button("« Back", on_change=self.go_back)
 
-        key_label = "Weather code (e.g. 95)" if category == "weather" else 'Holiday name (e.g. "New Year")'
+        is_weather = category == "weather"
+        key_label = "Weather code (e.g. 95)" if is_weather else 'Holiday name (e.g. "New Year")'
         self.key_input = Input[str](
             text=key_label,
             validation_function=lambda x: x,
@@ -35,7 +36,8 @@ class ActionAddScreen(DavaScreen):
             active_prompt="Enter description: ",
         )
 
-        super().__init__(group, service, message=f"**➕ Add {category} action**")
+        label = "weather" if is_weather else "holiday"
+        super().__init__(group, service, message=f"**➕ Add {label} action**")
         self.add_component(self.back_btn)
         self.add_component(self.key_input)
         self.add_component(self.value_input)
@@ -48,8 +50,7 @@ class ActionAddScreen(DavaScreen):
         ]
 
     async def display(self, update: TuicanUpdate) -> None:
-        await super().display(update)
-        await self.set_focus(self.key_input)
+        await self.display_with_focus(update, self.key_input)
 
     async def on_key_entered(self):
         # on_change fires only after a committed message; None means not submitted
