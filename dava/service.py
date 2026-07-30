@@ -341,11 +341,19 @@ class DavaService:
         try:
             weather = await self._get_weather(user_id)
             use_video, weather_code = await self._should_generate_video(weather, user_id)
+            scene_ref = self.db.get_reference_image_path(user_id)
+            use_scene_ref = bool(scene_ref)
             if use_video:
-                ref_prompt = await self._prepare_prompt(user_id, weather)
+                # First frame for video: condition on scene reference when present
+                # (same stabilization as static path), else fall back to base avatar.
+                ref_prompt = await self._prepare_prompt(
+                    user_id, weather, include_place=not use_scene_ref
+                )
                 image_params = self.resolve_image_params(user_id)
-                base_for_ref = self.db.get_base_image_path(user_id)
-                ref_cache_hash = self.db.compute_cache_hash(user_id, ref_prompt, mode="image", reference_image_path=base_for_ref)
+                base_for_ref = scene_ref or self.db.get_base_image_path(user_id)
+                ref_cache_hash = self.db.compute_cache_hash(
+                    user_id, ref_prompt, mode="image", reference_image_path=base_for_ref
+                )
                 ref_cached = self.db.check_cache(user_id, ref_cache_hash, mode="image")
                 if ref_cached:
                     ref_image_path = ref_cached
@@ -380,11 +388,9 @@ class DavaService:
                     hermes_xai_video_model=self.get_admin_value("hermes_xai_video_model"),
                     xai_auth_path=self.get_admin_value("xai_auth_path"),
                 )
-                logger.info(f"User {user_id}: Video avatar updated!")
+                logger.info(f"User {user_id}: Video avatar updated! (scene_ref={use_scene_ref})")
                 return "✅ Video avatar updated!"
             else:
-                scene_ref = self.db.get_reference_image_path(user_id)
-                use_scene_ref = bool(scene_ref)
                 prompt = await self._prepare_prompt(user_id, weather, include_place=not use_scene_ref)
                 image_params = self.resolve_image_params(user_id)
                 await self.updater.async_update_avatar(
