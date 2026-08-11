@@ -143,14 +143,14 @@ Advantages:
 
 Configuration (admin / global_config):
 - `xai_auth_path` — optional override (default `~/.dava/xai_auth.json`)
-- `hermes_xai_image_model` — e.g. `grok-imagine-image-quality`
+- `hermes_xai_image_model` — default `grok-imagine-image-2.0` (max quality `medium` is sent automatically)
 - `hermes_xai_video_model` — e.g. `grok-imagine-video-1.5-preview`
 
 Example (via `/set_global_variable` or DB):
 ```
 image_generator=hermes
 video_generator=hermes
-hermes_xai_image_model=grok-imagine-image-quality
+hermes_xai_image_model=grok-imagine-image-2.0
 ```
 
 After the initial `init_xai_auth.py` run, the bot will pick up the token automatically.

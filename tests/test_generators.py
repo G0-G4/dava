@@ -104,9 +104,18 @@ class TestVideoGeneratorABC:
         assert inspect.iscoroutinefunction(VideoGenerator.generate_and_save_video)
     def test_hermes(self):
         mock_config = MagicMock()
+        mock_config.get.return_value = None
         result = get_image_generator(mock_config, image_generator=ImageGenerators.HERMES)
-        from dava.generators.hermes_image_generator import HermesImageGenerator
+        from dava.generators.hermes_image_generator import (
+            DEFAULT_IMAGE_MODEL,
+            DEFAULT_IMAGE_QUALITY,
+            HermesImageGenerator,
+        )
         assert isinstance(result, HermesImageGenerator)
+        assert result._model == DEFAULT_IMAGE_MODEL
+        assert DEFAULT_IMAGE_MODEL == "grok-imagine-image-2.0"
+        assert DEFAULT_IMAGE_QUALITY == "medium"
+        assert HermesImageGenerator._supports_quality_param(DEFAULT_IMAGE_MODEL)
 
     def test_hermes_with_overrides(self):
         mock_config = MagicMock()
@@ -120,6 +129,7 @@ class TestVideoGeneratorABC:
         assert isinstance(result, HermesImageGenerator)
         assert result._auth_path == "/tmp/fake-auth.json"
         assert result._model == "grok-imagine-image"
+        assert not HermesImageGenerator._supports_quality_param("grok-imagine-image")
 
     def test_hermes_with_xai_auth_path(self):
         mock_config = MagicMock()

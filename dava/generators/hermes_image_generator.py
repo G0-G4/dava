@@ -13,7 +13,9 @@ from dava.generators.image_generator import ImageGenerator
 logger = logging.getLogger(__name__)
 
 XAI_BASE_URL = "https://api.x.ai/v1"
-DEFAULT_IMAGE_MODEL = "grok-imagine-image-quality"
+DEFAULT_IMAGE_MODEL = "grok-imagine-image-2.0"
+# Max quality for grok-imagine-image-2.0 (API allows only low | medium).
+DEFAULT_IMAGE_QUALITY = "medium"
 
 
 class HermesImageGenerator(ImageGenerator):
@@ -55,6 +57,11 @@ class HermesImageGenerator(ImageGenerator):
             logger.debug(f"Using xAI token masked={mask_token(token)} (len={len(token)})")
         return token
 
+    @staticmethod
+    def _supports_quality_param(model: str) -> bool:
+        """quality=low|medium is only documented for grok-imagine-image-2.0."""
+        return "image-2.0" in (model or "")
+
     async def generate_and_save_image(self, prompt: str, input_image_path: str, output_path: str) -> str:
         token = await self._get_token()
         headers = {
@@ -77,8 +84,14 @@ class HermesImageGenerator(ImageGenerator):
             "image": image_payload,
             "aspect_ratio": "1:1",   # dava avatars are square
         }
+        if self._supports_quality_param(self._model):
+            payload["quality"] = DEFAULT_IMAGE_QUALITY
 
-        logger.info(f"Using real xAI Grok Imagine ({self._model}) via xAI OAuth for image generation (reference-based)")
+        logger.info(
+            f"Using real xAI Grok Imagine ({self._model}"
+            f"{', quality=' + DEFAULT_IMAGE_QUALITY if 'quality' in payload else ''}"
+            f") via xAI OAuth for image generation (reference-based)"
+        )
 
         data = await self._post_with_refresh_retry(
             f"{XAI_BASE_URL}/images/edits",
