@@ -7,10 +7,11 @@ async def make_request(
     headers: Dict[str, str],
     method: str = "POST",
     data: Optional[Dict[str, Any]] = None,
-    params: Optional[Dict[str, Any]] = None
+    params: Optional[Dict[str, Any]] = None,
+    timeout: float = 30,
 ) -> dict:
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
             kwargs = {
                 "headers": headers,
                 "params": params,
@@ -22,5 +23,7 @@ async def make_request(
                     error_msg = await response.text()
                     raise RequestError(f"{method} {url} failed: {response.status} - {error_msg}")
                 return await response.json()
-    except aiohttp.ClientError as e:
+    except RequestError:
+        raise
+    except (aiohttp.ClientError, TimeoutError) as e:
         raise RequestError(f"Network error: {str(e)}") from e

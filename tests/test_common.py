@@ -78,3 +78,9 @@ class TestMakeRequest:
                 headers={},
                 method="GET",
             )
+
+    async def test_timeout_wrapped_as_request_error(self):
+        with patch("dava.common.aiohttp.ClientSession") as mock_session_cls:
+            mock_session_cls.return_value.__aenter__.side_effect = TimeoutError("timed out")
+            with pytest.raises(RequestError, match="Network error"):
+                await make_request("http://example.com", headers={}, method="GET")

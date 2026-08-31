@@ -71,6 +71,7 @@ class DavaService:
         self._running_jobs: set[int] = set()
         self._pending_upload: set[int] = set()
         self._pending_reference_upload: set[int] = set()
+        self._last_weather: dict[int, dict] = {}
 
     def is_allowed(self, user_id: int) -> bool:
         return self.db.is_allowed(user_id)
@@ -417,8 +418,6 @@ class DavaService:
         holidays = self.get_effective_value(user_id, "holidays")
         prompt_template = self.get_effective_value(user_id, "prompt_text")
 
-        if weather is None:
-            weather = await self._get_weather(user_id)
         prompt = prompt_template or ""
         substitutions = {**(weather or {})}
         if include_place:
@@ -449,14 +448,25 @@ class DavaService:
         tz = self.get_effective_value(user_id, "timezone")
         weather_override = self.get_effective_value(user_id, "weather")
         try:
-            return await self.weather_descriptor.get_forecast(
-                latitude=float(lat) if lat else None,
-                longitude=float(lon) if lon else None,
+            weather = await self.weather_descriptor.get_forecast(
+                latitude=lat,
+                longitude=lon,
                 timezone=tz,
                 weather_override=weather_override,
             )
-        except Exception:
-            logger.warning(f"Could not fetch weather for user {user_id}")
+            if isinstance(weather, dict) and weather:
+                self._last_weather[user_id] = weather
+            return weather
+        except Exception as e:
+            logger.warning(
+                "Could not fetch weather for user %s (lat=%r lon=%r tz=%r): %s",
+                user_id, lat, lon, tz, e,
+                exc_info=True,
+            )
+            cached = self._last_weather.get(user_id)
+            if cached:
+                logger.warning("Using last known weather for user %s", user_id)
+                return cached
             return None
 
     def _get_neutral_reference_weather(self, user_id: int) -> dict:
@@ -504,8 +514,7 @@ class DavaService:
         holidays = self.get_effective_value(user_id, "holidays")
         prompt_template = self.get_effective_value(user_id, "video_prompt_text") or "{action}"
 
-        if weather is None:
-            weather = await self._get_weather(user_id) or {}
+        weather = weather or {}
         holiday = self.holiday_checker.get_today_holiday(holidays)
 
         video_actions = self.load_video_actions(user_id)
@@ -668,8 +677,8 @@ class DavaService:
         weather_override = self.get_effective_value(user_id, "weather")
         try:
             weather = await self.weather_descriptor.get_forecast(
-                latitude=float(lat) if lat else None,
-                longitude=float(lon) if lon else None,
+                latitude=lat,
+                longitude=lon,
                 timezone=tz,
                 weather_override=weather_override,
             )
