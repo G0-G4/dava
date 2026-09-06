@@ -149,24 +149,94 @@ class TestVideoAvatarCache:
                         assert args[1] == str(ref_path)
 
 
+class _FakeTelegramResp:
+    def __init__(self, payload, status=200):
+        import json as _json
+        self.status = status
+        self._text = _json.dumps(payload)
+
+    async def text(self):
+        return self._text
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+
+class _FakeTelegramSession:
+    """Minimal aiohttp.ClientSession stand-in that records delete calls."""
+
+    def __init__(self, handler):
+        self.handler = handler
+        self.calls = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    def post(self, url, json=None):
+        self.calls.append({"url": url, "json": json})
+        return self.handler(json)
+
+
 class TestDeleteAvatar:
-    async def test_delete_avatar_success(self, avatar_updater_with_client):
-        from aiohttp import web
-        from aiohttp.test_utils import TestServer
+    async def test_clears_public_slot_and_main_gallery(self, avatar_updater_with_client):
+        updater = avatar_updater_with_client
+        main_remaining = {"n": 2}
 
-        async def handler(request):
-            return web.json_response({"ok": True})
+        def handler(payload):
+            if payload.get("is_public"):
+                return _FakeTelegramResp({"ok": True, "result": True})
+            if main_remaining["n"] > 0:
+                main_remaining["n"] -= 1
+                return _FakeTelegramResp({"ok": True, "result": True})
+            return _FakeTelegramResp({
+                "ok": False,
+                "error_code": 400,
+                "description": "Bad Request: no profile photo",
+            })
 
-        app = web.Application()
-        app.router.add_post("/bottest-token/removeBusinessAccountProfilePhoto", handler)
-        server = TestServer(app)
-        await server.start_server()
-        try:
-            original_url = f"https://api.telegram.org/bottest-token/removeBusinessAccountProfilePhoto"
-            with patch("dava.avatar_updater.aiohttp.ClientSession") as mock_session_cls:
-                pass
-        finally:
-            await server.close()
+        session = _FakeTelegramSession(handler)
+        with patch("dava.avatar_updater.aiohttp.ClientSession", return_value=session):
+            await updater._delete_avatar("conn-1")
+
+        flags = [c["json"]["is_public"] for c in session.calls]
+        assert flags[0] is True
+        assert flags[1:] == [False, False, False]
+        assert all(c["json"]["business_connection_id"] == "conn-1" for c in session.calls)
+
+    async def test_stops_when_gallery_already_empty(self, avatar_updater_with_client):
+        updater = avatar_updater_with_client
+
+        def handler(payload):
+            return _FakeTelegramResp({
+                "ok": False,
+                "error_code": 400,
+                "description": "Bad Request: no profile photo",
+            })
+
+        session = _FakeTelegramSession(handler)
+        with patch("dava.avatar_updater.aiohttp.ClientSession", return_value=session):
+            await updater._delete_avatar("conn-1")
+
+        flags = [c["json"]["is_public"] for c in session.calls]
+        assert flags == [True, False]
+
+    async def test_http_error_does_not_loop_forever(self, avatar_updater_with_client):
+        updater = avatar_updater_with_client
+
+        def handler(payload):
+            return _FakeTelegramResp({"ok": False, "description": "Forbidden: not enough rights"}, status=403)
+
+        session = _FakeTelegramSession(handler)
+        with patch("dava.avatar_updater.aiohttp.ClientSession", return_value=session):
+            await updater._delete_avatar("conn-1")
+
+        assert len(session.calls) == 2  # public attempt + one main attempt
 
 
 def _ffmpeg_available():

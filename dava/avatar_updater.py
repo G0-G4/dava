@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -14,6 +15,10 @@ from dava.generators import get_image_generator, get_video_generator
 logger = logging.getLogger(__name__)
 
 MAX_VIDEO_DURATION = 10
+# Telegram promotes the previous gallery photo after each delete, so one
+# removeBusinessAccountProfilePhoto call is not enough to clear the profile.
+MAX_PROFILE_PHOTO_DELETES = 10
+_NO_PHOTO_MARKERS = ("no profile photo", "photo_id_invalid", "photo not found")
 
 
 class AvatarUpdater:
@@ -267,13 +272,65 @@ class AvatarUpdater:
         return None
 
     async def _delete_avatar(self, connection_id: str):
+        """Clear business profile photos before uploading a replacement.
+
+        A managed account has two independent slots (main + public). Deleting
+        the current main photo also promotes the previous gallery photo, so a
+        single call leaves the old avatar visible next to the new one.
+        """
         url = f"https://api.telegram.org/bot{self.config.bot_token}/removeBusinessAccountProfilePhoto"
+        async with aiohttp.ClientSession() as session:
+            public_removed = await self._remove_business_profile_photo(
+                session, url, connection_id, is_public=True
+            )
+            if public_removed:
+                logger.info("Removed public business profile photo")
+
+            removed = 0
+            for _ in range(MAX_PROFILE_PHOTO_DELETES):
+                if not await self._remove_business_profile_photo(
+                    session, url, connection_id, is_public=False
+                ):
+                    break
+                removed += 1
+            if removed:
+                logger.info(f"Removed {removed} main business profile photo(s)")
+
+    async def _remove_business_profile_photo(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        connection_id: str,
+        *,
+        is_public: bool,
+    ) -> bool:
         payload = {
             "business_connection_id": connection_id,
-            "is_public": False,
+            "is_public": is_public,
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload) as resp:
-                if resp.status != 200:
-                    text = await resp.text()
-                    logger.warning(f"Failed to delete old profile photo: {resp.status} {text}")
+        async with session.post(url, json=payload) as resp:
+            text = await resp.text()
+            ok, description = self._parse_telegram_ok(resp.status, text)
+            if ok:
+                return True
+            if any(marker in description.lower() for marker in _NO_PHOTO_MARKERS):
+                logger.debug(
+                    f"No more profile photos to delete (public={is_public}): {description}"
+                )
+                return False
+            logger.warning(
+                f"Failed to delete profile photo (public={is_public}): "
+                f"{resp.status} {text}"
+            )
+            return False
+
+    @staticmethod
+    def _parse_telegram_ok(status: int, text: str) -> tuple[bool, str]:
+        try:
+            data = json.loads(text) if text else {}
+        except json.JSONDecodeError:
+            return False, text or f"HTTP {status}"
+        if not isinstance(data, dict):
+            return False, text
+        description = str(data.get("description") or text or f"HTTP {status}")
+        return bool(data.get("ok")), description
