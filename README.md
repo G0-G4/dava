@@ -65,7 +65,7 @@ You can also override the Polza model by setting `polza_model` to any model ID s
 
 The bot can also generate **video profile photos** using Veo 3.1 Fast via the Polza.ai API. Video generation is triggered automatically on:
 
-- **Holidays** — Russian public holidays and Friday the 13th
+- **Holidays** — days listed in the `holidays` setting (date rule → name) that have an action in `video_actions.holidays`. Date rules are `MM-DD` (e.g. `10-31`) or weekday-day (e.g. `fri-13`); the first matching rule wins. Standard Russian holidays and Friday the 13th are seeded by migration 006
 - **Extreme weather** — thunderstorms, heavy rain/snow, hail, etc. (weather codes with actions in `video_actions.weather`)
 
 Video settings are seeded with sensible defaults in the database and can be configured via the bot's interactive menu (recommended) or commands:

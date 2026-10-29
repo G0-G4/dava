@@ -19,7 +19,7 @@ class ActionAddScreen(DavaScreen):
         category: str,  # "weather" or "holidays"
     ):
         self.category = category
-        self._holiday_date: str = ""  # "" = standard / no custom date
+        self._holiday_date: str = ""  # "" = no date (never triggers)
         self.back_btn = Button("« Back", on_change=self.go_back)
 
         is_weather = category == "weather"
@@ -31,12 +31,12 @@ class ActionAddScreen(DavaScreen):
             active_prompt="Enter key: ",
         )
         self.date_input = Input[str](
-            text="Date MM-DD",
+            text="Date MM-DD / fri-13",
             validation_function=lambda x: x,
             on_change=self.on_date_entered,
-            active_prompt="Enter date MM-DD (or - for standard): ",
+            active_prompt="Enter date MM-DD or weekday-day like fri-13 (or - for none): ",
         )
-        self.skip_date_btn = Button("⏭ Standard holiday (no date)", on_change=self.skip_date)
+        self.skip_date_btn = Button("⏭ No date yet", on_change=self.skip_date)
         self.value_input = Input[str](
             text="Action description",
             validation_function=lambda x: x,
@@ -58,8 +58,8 @@ class ActionAddScreen(DavaScreen):
         return (
             f"**➕ Add {label} action**\n\n"
             "1. Holiday **name** (label in prompts / video_actions)\n"
-            "2. **Date** `MM-DD` for custom days (e.g. birthday). "
-            "For standard calendar holidays tap ⏭ or send `-`\n"
+            "2. **Date**: `MM-DD` (e.g. `10-31`) or weekday-day (e.g. `fri-13`). "
+            "Without a date the holiday never triggers\n"
             "3. Action **description** for the video"
         )
 
@@ -93,13 +93,13 @@ class ActionAddScreen(DavaScreen):
             return
         normalized = normalize_holiday_date(raw)
         if normalized is None:
-            await self.notify("❌ Date must be MM-DD (e.g. 03-08) or `-` for standard")
+            await self.notify("❌ Date must be MM-DD (e.g. 03-08) or weekday-day (e.g. fri-13), or `-` to clear")
             return
         self._holiday_date = normalized
         await self.set_focus(self.value_input)
 
     async def skip_date(self):
-        """Standard calendar holiday — no MM-DD override."""
+        """No date yet — the holiday does not trigger until one is set."""
         self._holiday_date = ""
         self.date_input.value = "-"
         await self.set_focus(self.value_input)
@@ -120,7 +120,7 @@ class ActionAddScreen(DavaScreen):
             if self.date_input.value is not None:
                 normalized = normalize_holiday_date(self.date_input.value)
                 if normalized is None:
-                    await self.notify("❌ Date must be MM-DD (e.g. 03-08) or `-` for standard")
+                    await self.notify("❌ Date must be MM-DD (e.g. 03-08) or weekday-day (e.g. fri-13), or `-` to clear")
                     return
                 holiday_date = normalized
 

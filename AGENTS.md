@@ -24,7 +24,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
   - `db.py` — synchronous SQLite (`sqlite3`), WAL mode, stores users, user_config, global_config, connections, schedules, image cache. `auto_create=False` by default; `_create_tables()` kept for migration use
   - `weather_descriptor.py` — fetches from Open-Meteo API, maps WMO codes to prompt-friendly descriptions. Returns `weather_code` in forecast dict
   - `weather_codes.py` — large dict mapping WMO weather codes → season × day/night prompt fragments
-  - `holidays.py` — uses `workalendar` for Russian holidays, Friday 13th special case
+  - `holidays.py` — matches today against the `holidays` config map only (no calendar library). Rules: `MM-DD` or `ddd-DD` (e.g. `fri-13`); first match in map order wins
   - `generators/` — `ImageGenerator` ABC with `StableDiffusionGenerator`, `NanoBananaGenerator` (Polza), `VideoGenerator` ABC, `VeoGenerator`, `HermesImageGenerator`/`HermesVideoGenerator` (real xAI Grok Imagine via dedicated OAuth), plus `xai_auth.py` (device-code login + auto refresh for independent tokens) and `polza_base.py`
   - `common.py` — shared async HTTP helper
   - `errors.py` — `RequestError`
@@ -34,6 +34,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
   - `migrations/001_initial_schema.py` — creates users, user_config, global_config tables
   - `migrations/002_seed_video_defaults.py` — seeds video_actions, video_prompt_text into global_config
   - `migrations/003_seed_app_defaults.py` — seeds application defaults (prompt_text, place, coords, etc.) into global_config
+  - `migrations/006_seed_standard_holiday_dates.py` — binds standard holiday labels (New Year's Day, Victory Day, friday the 13th, …) to date rules in global and per-user `holidays`
 
 ## Key Conventions & Gotchas
 
@@ -51,6 +52,7 @@ Telegram bot ("dava") that updates user profile photos based on current weather 
 - Video is truncated to 3 seconds, audio stripped (`-an`), `+faststart` movflags — required for Telegram `VideoFileInvalidError`
 - Telegram `UploadProfilePhotoRequest` requires both `file=` (static first frame JPG) and `video=` params
 - `video_mode` values: `auto` (default — generate video on holidays/extreme weather), `never` (disable video generation)
+- When today's holiday has a `video_actions.holidays` entry, `_prepare_prompt` uses that action text as the outfit/scene (appended as "Holiday outfit and scene: …") so the static image / video first frame matches the video. Without an action it falls back to generic "clothing suitable for celebrating …"; with no holiday `{clothing}` becomes `DEFAULT_CLOTHING`
 - Video triggering is determined by `video_actions` keys: weather codes in `video_actions.weather` and holidays in `video_actions.holidays` both define *whether* to generate video and *what action* to use
 - `ImageGenerators.NANO_BANANA_2` is the **default** when no generator is configured (see `generators/__init__.py`)
 - Stable Diffusion generator crops top 4% of generated image (lines 124-125 in `stable_diffusion_generator.py`)

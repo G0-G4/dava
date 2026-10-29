@@ -19,7 +19,7 @@ from dava.config import (
 )
 from dava.db import Database
 from dava.generators import get_image_generator
-from dava.holidays import HolidayChecker
+from dava.holidays import HolidayChecker, normalize_rule
 from dava.logs import get_recent_logs
 from dava.weather_descriptor import WeatherDescriptor
 from dava.weather_codes import codes as weather_codes
@@ -29,28 +29,26 @@ logger = logging.getLogger(__name__)
 # Keys under video_actions dict (must match seeded defaults / DB shape).
 VIDEO_ACTION_TYPES = frozenset({"weather", "holidays"})
 
-# MM-DD for custom calendar holiday overrides (holidays config key).
-_HOLIDAY_DATE_RE = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
+# Default for {clothing} when no holiday applies.
+DEFAULT_CLOTHING = "weather-appropriate clothing"
 
 
 def normalize_holiday_date(mm_dd: str | None) -> str | None:
-    """Normalize user input to MM-DD or empty string.
+    """Normalize user input to a holiday date rule or empty string.
 
     Returns:
-        ``""`` for no custom date (standard calendar holiday),
-        ``"MM-DD"`` when valid,
+        ``""`` for no date (holiday will not trigger),
+        ``"MM-DD"`` or ``"ddd-DD"`` (e.g. ``"fri-13"``) when valid,
         ``None`` when invalid.
     """
     text = (mm_dd or "").strip()
     if text == "" or text in ("-", "none", "skip", "."):
         return ""
-    if _HOLIDAY_DATE_RE.match(text):
-        return text
-    return None
+    return normalize_rule(text)
 
 
 def validate_holiday_date(mm_dd: str) -> bool:
-    """Return True if ``mm_dd`` is empty/skip or a valid MM-DD string."""
+    """Return True if ``mm_dd`` is empty/skip or a valid date rule."""
     return normalize_holiday_date(mm_dd) is not None
 
 
@@ -135,7 +133,7 @@ class DavaService:
         return dict(bucket) if isinstance(bucket, dict) else {}
 
     def load_holiday_date_overrides(self, user_id: int) -> dict[str, str]:
-        """Return effective holidays map: MM-DD → holiday label."""
+        """Return effective holidays map: date rule (MM-DD / ddd-DD) → holiday label."""
         raw = self.get_effective_value(user_id, "holidays") or {}
         if isinstance(raw, str):
             try:
@@ -147,17 +145,17 @@ class DavaService:
         return {str(k): str(v) for k, v in raw.items()}
 
     def get_holiday_date_for_name(self, user_id: int, name: str) -> str | None:
-        """Reverse-lookup MM-DD for a custom holiday label, if any."""
+        """Reverse-lookup the date rule for a holiday label, if any."""
         for mm_dd, label in self.load_holiday_date_overrides(user_id).items():
             if label == name:
                 return mm_dd
         return None
 
     def set_holiday_date_for_name(self, user_id: int, name: str, mm_dd: str | None) -> str | None:
-        """Bind holiday label to MM-DD (or clear binding). Returns error text or None."""
+        """Bind holiday label to a date rule (or clear binding). Returns error text or None."""
         date_text = normalize_holiday_date(mm_dd)
         if date_text is None:
-            return "❌ Date must be MM-DD (e.g. 03-08), or `-` / empty for standard holiday"
+            return "❌ Date must be MM-DD (e.g. 03-08) or weekday-day (e.g. fri-13), or `-` / empty to clear"
         holidays = self.load_holiday_date_overrides(user_id)
         # Drop previous dates pointing at this name
         holidays = {k: v for k, v in holidays.items() if v != name}
@@ -425,14 +423,25 @@ class DavaService:
         else:
             substitutions["place"] = "the location shown in the reference image"
 
+        substitutions.setdefault("clothing", DEFAULT_CLOTHING)
+        holiday_action = ""
         if apply_holidays:
             holiday = self.holiday_checker.get_today_holiday(holidays)
             if holiday:
-                substitutions["clothing"] = self.holiday_checker.get_clothing(holidays)
+                holiday_action = self.get_video_actions_category(user_id, "holidays").get(holiday, "")
                 substitutions["environmental_details"] = self.holiday_checker.get_details(holidays)
+                if holiday_action:
+                    # Same costume/scene as the holiday video action, so the
+                    # first frame and the video don't diverge.
+                    substitutions["clothing"] = "the holiday outfit described below"
+                else:
+                    substitutions["clothing"] = self.holiday_checker.get_clothing(holidays)
 
         for key, val in substitutions.items():
             prompt = prompt.replace("{" + key + "}", str(val))
+
+        if holiday_action:
+            prompt = prompt.rstrip() + " Holiday outfit and scene: " + holiday_action
 
         if not include_place:
             bg_guide = " Preserve the exact background, landmarks, scenery and overall composition from the reference image; only adapt weather, lighting, clothing and environmental effects."

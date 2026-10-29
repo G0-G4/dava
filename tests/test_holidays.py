@@ -1,79 +1,78 @@
 from datetime import date
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from dava.holidays import HolidayChecker, FRIDAY
+from dava.holidays import HolidayChecker, normalize_rule, rule_matches
 
 
-class TestIsFriday13th:
-    def test_friday_13th_true(self):
-        hc = HolidayChecker()
-        with patch("dava.holidays.date") as mock_date:
-            mock_date.today.return_value = date(2025, 6, 13)
-            mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-            assert hc.is_friday_13th() is True
+@pytest.fixture
+def today():
+    with patch("dava.holidays.date") as mock_date:
+        yield mock_date.today
 
-    def test_friday_13th_false_non_friday(self):
-        hc = HolidayChecker()
-        with patch("dava.holidays.date") as mock_date:
-            mock_date.today.return_value = date(2025, 6, 14)
-            mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-            assert hc.is_friday_13th() is False
 
-    def test_friday_13th_false_not_13th(self):
-        hc = HolidayChecker()
-        with patch("dava.holidays.date") as mock_date:
-            mock_date.today.return_value = date(2025, 6, 6)
-            mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-            assert hc.is_friday_13th() is False
+class TestNormalizeRule:
+    @pytest.mark.parametrize("text,expected", [
+        ("10-31", "10-31"),
+        (" 03-08 ", "03-08"),
+        ("fri-13", "fri-13"),
+        ("FRI-13", "fri-13"),
+        ("mon-1", "mon-01"),
+    ])
+    def test_valid(self, text, expected):
+        assert normalize_rule(text) == expected
+
+    @pytest.mark.parametrize("text", ["", None, "13-01", "02-30x", "fr-13", "fri-32", "friday-13", "10/31"])
+    def test_invalid(self, text):
+        assert normalize_rule(text) is None
+
+
+class TestRuleMatches:
+    def test_month_day(self):
+        assert rule_matches("10-31", date(2026, 10, 31))
+        assert not rule_matches("10-31", date(2026, 10, 30))
+
+    def test_weekday_day(self):
+        assert rule_matches("fri-13", date(2026, 2, 13))  # Friday
+        assert rule_matches("fri-13", date(2026, 3, 13))  # Friday
+        assert not rule_matches("fri-13", date(2026, 2, 6))  # Friday, not 13th
+        assert not rule_matches("fri-13", date(2026, 1, 13))  # Tuesday
+
+    def test_invalid_rule_never_matches(self):
+        assert not rule_matches("garbage", date(2026, 10, 31))
 
 
 class TestGetTodayHoliday:
-    def test_custom_override(self):
-        hc = HolidayChecker()
-        holidays = {"01-01": "New Year"}
-        with patch("dava.holidays.date") as mock_date:
-            mock_date.today.return_value = date(2025, 1, 1)
-            mock_date.side_effect = lambda *a, **kw: date(*a, **kw)
-            result = hc.get_today_holiday(holidays=holidays)
-            assert result == "New Year"
+    def test_month_day_rule(self, today):
+        today.return_value = date(2026, 10, 31)
+        assert HolidayChecker().get_today_holiday({"10-31": "halloween"}) == "halloween"
 
-    def test_friday_13th(self):
-        hc = HolidayChecker()
-        with patch.object(HolidayChecker, 'is_friday_13th', return_value=True):
-            result = hc.get_today_holiday()
-            assert result == FRIDAY
+    def test_weekday_rule(self, today):
+        today.return_value = date(2026, 2, 13)
+        assert HolidayChecker().get_today_holiday({"fri-13": "friday the 13th"}) == "friday the 13th"
 
-    def test_russian_holiday(self):
-        hc = HolidayChecker()
-        with patch.object(HolidayChecker, 'is_friday_13th', return_value=False):
-            with patch("dava.holidays.Russia") as MockRussia:
-                mock_cal = MagicMock()
-                mock_cal.get_holiday_label.return_value = "New Year"
-                MockRussia.return_value = mock_cal
-                result = hc.get_today_holiday()
-                assert result == "New Year"
+    def test_first_match_wins(self, today):
+        today.return_value = date(2026, 2, 13)
+        holidays = {"02-13": "Birthday", "fri-13": "friday the 13th"}
+        assert HolidayChecker().get_today_holiday(holidays) == "Birthday"
+        reordered = {"fri-13": "friday the 13th", "02-13": "Birthday"}
+        assert HolidayChecker().get_today_holiday(reordered) == "friday the 13th"
+
+    def test_no_calendar_fallback(self, today):
+        # Standard holidays come only from settings now.
+        today.return_value = date(2026, 1, 1)
+        assert HolidayChecker().get_today_holiday({}) is None
+        assert HolidayChecker().get_today_holiday(None) is None
 
 
 class TestGetClothing:
-    def test_friday_13th_clothing(self):
-        hc = HolidayChecker()
-        with patch.object(HolidayChecker, 'get_today_holiday', return_value=FRIDAY):
-            result = hc.get_clothing()
-            assert result == "jason costume with mask and machete"
-
-    def test_normal_holiday_clothing(self):
-        hc = HolidayChecker()
-        with patch.object(HolidayChecker, 'get_today_holiday', return_value="Christmas"):
-            result = hc.get_clothing()
-            assert "Christmas" in result
-            assert "clothing suitable" in result
+    def test_clothing_mentions_holiday(self):
+        with patch.object(HolidayChecker, "get_today_holiday", return_value="Christmas"):
+            assert HolidayChecker().get_clothing() == "clothing suitable for celebrating Christmas"
 
 
 class TestGetDetails:
     def test_details_format(self):
-        hc = HolidayChecker()
-        with patch.object(HolidayChecker, 'get_today_holiday', return_value="Test Day"):
-            result = hc.get_details()
-            assert result == "everything is prepared for celebrating Test Day"
+        with patch.object(HolidayChecker, "get_today_holiday", return_value="Test Day"):
+            assert HolidayChecker().get_details() == "everything is prepared for celebrating Test Day"

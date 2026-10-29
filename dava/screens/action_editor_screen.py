@@ -26,13 +26,13 @@ class ActionEditorScreen(DavaScreen):
 
         self.back_btn = Button("« Back to list", on_change=self.go_back)
         self.delete_btn = Button("🗑 Delete", on_change=self.do_delete)
-        self.clear_date_btn = Button("⏭ Clear date (standard)", on_change=self.clear_date)
+        self.clear_date_btn = Button("⏭ Clear date", on_change=self.clear_date)
 
         self.date_input = Input[str](
-            text="Date MM-DD",
+            text="Date MM-DD / fri-13",
             validation_function=lambda x: x,
             on_change=self.save_date,
-            active_prompt="Enter date MM-DD (or - for standard): ",
+            active_prompt="Enter date MM-DD or weekday-day like fri-13 (or - to clear): ",
         )
         self.value_input = Input[str](
             text="Action text",
@@ -68,14 +68,14 @@ class ActionEditorScreen(DavaScreen):
         if self.category == "holidays":
             date_val = self.service.get_holiday_date_for_name(user_id, self.key)
             if date_val:
-                parts.append(f"Custom date: `{date_val}` (MM-DD)")
+                parts.append(f"Date: `{date_val}`")
             else:
                 parts.append(
-                    "Custom date: _(none — standard calendar holiday or unset)_"
+                    "Date: _(none — holiday never triggers)_"
                 )
             parts.append(
-                "\nNon-standard holidays need **Date MM-DD** so the bot knows when to trigger. "
-                "Send `-` or tap ⏭ for standard calendar holidays."
+                "\nSet **Date** as `MM-DD` (e.g. `10-31`) or weekday-day (e.g. `fri-13`) "
+                "so the bot knows when to trigger. Send `-` or tap ⏭ to clear."
             )
         parts.append(
             f"\nCurrent description (copy, edit, send):\n```\n{self.current_value}\n```\n"
@@ -101,7 +101,7 @@ class ActionEditorScreen(DavaScreen):
             await self.notify(err)
             return
         self.date_input.value = ""
-        await self.notify("✅ Custom date cleared (standard holiday)")
+        await self.notify("✅ Date cleared")
         await self.set_focus(self.value_input)
 
     async def save_date(self):
@@ -113,7 +113,7 @@ class ActionEditorScreen(DavaScreen):
             return
         normalized = normalize_holiday_date(raw)
         if normalized is None:
-            await self.notify("❌ Date must be MM-DD (e.g. 03-08) or `-` for standard")
+            await self.notify("❌ Date must be MM-DD (e.g. 03-08) or weekday-day (e.g. fri-13), or `-` to clear")
             return
         user_id = self.current_user_id()
         err = self.service.set_holiday_date_for_name(user_id, self.key, normalized)
@@ -123,7 +123,7 @@ class ActionEditorScreen(DavaScreen):
         if normalized:
             await self.notify(f"✅ Date set to {normalized}")
         else:
-            await self.notify("✅ Custom date cleared (standard holiday)")
+            await self.notify("✅ Date cleared")
         await self.set_focus(self.value_input)
 
     async def save_value(self):
@@ -143,7 +143,7 @@ class ActionEditorScreen(DavaScreen):
             else:
                 normalized = normalize_holiday_date(raw)
                 if normalized is None:
-                    await self.notify("❌ Date must be MM-DD (e.g. 03-08) or `-` for standard")
+                    await self.notify("❌ Date must be MM-DD (e.g. 03-08) or weekday-day (e.g. fri-13), or `-` to clear")
                     return
                 holiday_date = normalized
         result = self.service.apply_video_action(
