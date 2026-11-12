@@ -5,7 +5,7 @@ VIDEO_ACTIONS = {
         "65": "torrential rain pouring in sheets, rapid splashing in puddles as user holds a newspaper over their head, running for cover",
         "66": "freezing rain coating surfaces with ice, ice crackling while user carefully walks on icy ground, arms out for balance, slipping slightly",
         "67": "heavy freezing rain, ice accumulating, dramatic ice formations as user chips ice off their jacket, shivering uncontrollably",
-        "71": "gentle snowfall, snowflakes drifting softly in the air as user catches snowflakes on their tongue, looking up with wonder",
+        "71": "gentle snowfall, snowflakes drifting softly in the air as user catches snowflakes with their hands, looking up with wonder",
         "73": "moderate snowfall, snowflakes swirling in the wind while user brushes snow off their shoulders, adjusting a scarf",
         "75": "heavy snowfall with large flakes swirling in the wind, blizzard-like as user squints through the snow, holding a hand up to shield their face",
         "77": "snow grains scattering in the wind, icy particles dancing while user shakes icy particles out of their hair, scrunching up their face",

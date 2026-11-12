@@ -125,3 +125,49 @@ class TestMigration006StandardHolidayDates:
             assert db.get_global_default("holidays") == {}
         finally:
             db._conn.close()
+
+
+class TestMigration007NeutralLightSnow:
+    def _db(self, tmp_data_dir):
+        return Database(str(tmp_data_dir / "mig007.db"), str(tmp_data_dir), admin_ids=set(), auto_create=True)
+
+    def test_upgrade_replaces_global_and_matching_users(self, tmp_data_dir):
+        db = self._db(tmp_data_dir)
+        try:
+            mod = _load_migration_module("007_neutral_light_snow_action.py")
+            custom = "heavy snow, user stays inside"
+            db.set_global_default(
+                "video_actions",
+                {"weather": {"71": mod.OLD_LIGHT_SNOW, "73": "moderate"}, "holidays": {}},
+            )
+            db.save_user_config(
+                1,
+                "video_actions",
+                {"weather": {"71": mod.OLD_LIGHT_SNOW}, "holidays": {"x": "y"}},
+            )
+            db.save_user_config(2, "video_actions", {"weather": {"71": custom}, "holidays": {}})
+
+            mod.upgrade(db)
+
+            assert db.get_global_default("video_actions")["weather"]["71"] == mod.NEW_LIGHT_SNOW
+            assert db.get_global_default("video_actions")["weather"]["73"] == "moderate"
+            user1 = db.get_effective_value(1, "video_actions")
+            assert user1["weather"]["71"] == mod.NEW_LIGHT_SNOW
+            assert user1["holidays"] == {"x": "y"}
+            assert db.get_effective_value(2, "video_actions")["weather"]["71"] == custom
+        finally:
+            db._conn.close()
+
+    def test_downgrade_restores_only_the_new_wording(self, tmp_data_dir):
+        db = self._db(tmp_data_dir)
+        try:
+            mod = _load_migration_module("007_neutral_light_snow_action.py")
+            db.set_global_default("video_actions", {"weather": {"71": mod.NEW_LIGHT_SNOW}})
+            db.save_user_config(1, "video_actions", {"weather": {"71": "already custom"}})
+
+            mod.downgrade(db)
+
+            assert db.get_global_default("video_actions")["weather"]["71"] == mod.OLD_LIGHT_SNOW
+            assert db.get_effective_value(1, "video_actions")["weather"]["71"] == "already custom"
+        finally:
+            db._conn.close()
