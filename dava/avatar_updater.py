@@ -15,10 +15,32 @@ from dava.generators import get_image_generator, get_video_generator
 logger = logging.getLogger(__name__)
 
 MAX_VIDEO_DURATION = 10
+# Telegram rejects a profile video over 2 MiB with VIDEO_FILE_INVALID.
+TELEGRAM_VIDEO_MAX_BYTES = 2 * 1024 * 1024
+# Stay under the hard limit. CRF 23 still governs calm scenes; the rate cap
+# only binds on noisy pictures (snow, rain, grain).
+VIDEO_SIZE_TARGET_BYTES = int(1.9 * 1024 * 1024)
+VIDEO_CRF = "23"
+VIDEO_MAXRATE_KBPS = 1600
+VIDEO_MAXRATE = f"{VIDEO_MAXRATE_KBPS}k"
+VIDEO_BUFSIZE = f"{VIDEO_MAXRATE_KBPS * 2}k"
 # Telegram promotes the previous gallery photo after each delete, so one
 # removeBusinessAccountProfilePhoto call is not enough to clear the profile.
 MAX_PROFILE_PHOTO_DELETES = 10
 _NO_PHOTO_MARKERS = ("no profile photo", "photo_id_invalid", "photo not found")
+
+
+def _fit_bitrate_kbps(duration_s: float) -> int:
+    """Kilobits/s for one retry encode that lands under VIDEO_SIZE_TARGET_BYTES.
+
+    The 0.85 factor leaves room for the mp4 container. The result is also
+    capped below the first-pass maxrate, so a file that already missed the
+    target is not re-encoded at the same rate.
+    """
+    duration_s = max(duration_s, 0.1)
+    from_size = int(VIDEO_SIZE_TARGET_BYTES * 8 / duration_s * 0.85 / 1000)
+    capped = min(from_size, int(VIDEO_MAXRATE_KBPS * 0.8))
+    return max(capped, 200)
 
 
 class AvatarUpdater:
@@ -166,6 +188,7 @@ class AvatarUpdater:
     async def _prepare_video(self, video_path: str) -> str:
         result = await self._truncate_video(video_path)
         result = await self._crop_to_square(result)
+        result = await self._fit_video_size(result)
         return result
 
     async def _truncate_video(self, video_path: str) -> str:
@@ -207,7 +230,8 @@ class AvatarUpdater:
         cmd = [
             "ffmpeg", "-y", "-i", video_path,
             "-vf", crop_filter,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:v", "libx264", "-preset", "fast", "-crf", VIDEO_CRF,
+            "-maxrate", VIDEO_MAXRATE, "-bufsize", VIDEO_BUFSIZE,
             "-an",
             "-movflags", "+faststart",
             cropped_path,
@@ -227,6 +251,65 @@ class AvatarUpdater:
             return video_path
         logger.info(f"Successfully cropped video to 1:1: {cropped_path}")
         return cropped_path
+
+    async def _fit_video_size(self, video_path: str) -> str:
+        path = Path(video_path)
+        if not path.exists():
+            return video_path
+        size = path.stat().st_size
+        if size <= VIDEO_SIZE_TARGET_BYTES:
+            logger.info(
+                f"Video size {size} bytes ({size / (1024 * 1024):.2f} MiB) is within the target"
+            )
+            return video_path
+
+        duration = await self._get_video_duration(video_path)
+        if duration is None or duration <= 0:
+            duration = float(MAX_VIDEO_DURATION)
+        bitrate_k = _fit_bitrate_kbps(duration)
+        fitted_path = str(path.with_stem(path.stem + "_fit"))
+        logger.info(
+            f"Video is {size} bytes ({size / (1024 * 1024):.2f} MiB), "
+            f"re-encoding at {bitrate_k}k to fit under {VIDEO_SIZE_TARGET_BYTES} bytes"
+        )
+        cmd = [
+            "ffmpeg", "-y", "-i", video_path,
+            "-vf", "format=yuv420p",
+            "-c:v", "libx264", "-preset", "fast",
+            "-b:v", f"{bitrate_k}k",
+            "-maxrate", f"{bitrate_k}k",
+            "-bufsize", f"{bitrate_k * 2}k",
+            "-an",
+            "-movflags", "+faststart",
+            fitted_path,
+        ]
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await process.communicate()
+        fitted = Path(fitted_path)
+        if process.returncode != 0 or not fitted.exists():
+            logger.warning(
+                f"ffmpeg size fit failed (code {process.returncode}), "
+                f"keeping {video_path}: {stderr.decode()[-500:]}"
+            )
+            return video_path
+        fitted_size = fitted.stat().st_size
+        if fitted_size < size:
+            logger.info(
+                f"Re-encoded video is {fitted_size} bytes ({fitted_size / (1024 * 1024):.2f} MiB)"
+            )
+            if fitted_size > TELEGRAM_VIDEO_MAX_BYTES:
+                logger.warning(
+                    f"Video is still over Telegram's {TELEGRAM_VIDEO_MAX_BYTES} byte limit"
+                )
+            return fitted_path
+        logger.warning(
+            f"Re-encode did not shrink the video ({fitted_size} >= {size}), keeping {video_path}"
+        )
+        return video_path
 
     async def _extract_first_frame(self, video_path: str) -> str:
         output_path = str(Path(video_path).with_suffix(".jpg"))

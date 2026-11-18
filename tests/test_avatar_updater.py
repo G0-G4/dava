@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from dava.avatar_updater import AvatarUpdater
+from dava.avatar_updater import VIDEO_SIZE_TARGET_BYTES, AvatarUpdater, _fit_bitrate_kbps
 from dava.config import Config, ImageGenerators, Style
 from dava.db import Database
 
@@ -243,6 +243,17 @@ def _ffmpeg_available():
     return shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
 
 
+class TestFitBitrate:
+    def test_short_clip_stays_below_first_pass_rate(self):
+        # 8s at the size-derived rate would be above 1600k * 0.8, so the
+        # retry must go lower than the pass that already missed the target.
+        assert _fit_bitrate_kbps(8.0) == 1280
+
+    def test_long_clip_follows_the_byte_budget(self):
+        assert _fit_bitrate_kbps(30.0) < 1280
+        assert _fit_bitrate_kbps(30.0) >= 200
+
+
 @pytest.mark.skipif(not _ffmpeg_available(), reason="ffmpeg/ffprobe not available")
 class TestCropToSquare:
     @pytest.fixture
@@ -448,6 +459,31 @@ class TestPrepareVideo:
 
         duration = self._probe_duration(result)
         assert duration <= 10, f"Video duration {duration:.1f}s exceeds 10s limit"
+        assert Path(result).stat().st_size <= VIDEO_SIZE_TARGET_BYTES
+        assert not result.endswith("_fit.mp4")
+
+    async def test_prepare_video_fits_noisy_source(self, avatar_updater, tmp_path, monkeypatch):
+        video_path = tmp_path / "noise.mp4"
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "lavfi", "-i", "color=c=black:s=544x544:d=2:r=24,noise=alls=100:allf=t",
+            "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "8000k",
+            "-pix_fmt", "yuv420p",
+            str(video_path),
+        ]
+        subprocess.run(cmd, capture_output=True, check=True)
+
+        result = await avatar_updater._prepare_video(str(video_path))
+
+        assert Path(result).stat().st_size <= VIDEO_SIZE_TARGET_BYTES
+        width, height = self._probe_dimensions(result)
+        assert width == height
+
+        monkeypatch.setattr("dava.avatar_updater.VIDEO_SIZE_TARGET_BYTES", 100_000)
+        refit = await avatar_updater._prepare_video(str(video_path))
+        assert refit.endswith("_fit.mp4")
+        assert Path(refit).stat().st_size < Path(result).stat().st_size
+        assert Path(refit).stat().st_size <= 100_000
 
     def _probe_dimensions(self, video_path):
         probe = subprocess.run(
